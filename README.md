@@ -8,9 +8,9 @@ verstellen (171–270 mm Höhe, Ø 57–80 mm).
 
 ## Anschauen im Browser
 
-- **Interaktive 3D-Vorschau:** [`vorschau.html`](vorschau.html) – Flaschensorte wählen,
-  Spanner und Hebel bewegen, Ablauf abspielen. Herunterladen und im Browser öffnen
-  oder über GitHub Pages aufrufen, falls aktiviert.
+- **Interaktive 3D-Vorschau:** [niwre88.github.io/tisch-flaschenoeffner/vorschau.html](https://niwre88.github.io/tisch-flaschenoeffner/vorschau.html)
+  – Flaschensorte wählen, Spanner und Hebel bewegen, Ablauf abspielen. Läuft direkt
+  im Browser, ohne Konto und ohne Installation.
 - **STL-Dateien** zeigt GitHub direkt als drehbares 3D-Modell an, wenn man sie anklickt:
   - [`Flaschenoeffner_1zu1_Szene_mit_Mensch.stl`](Flaschenoeffner_1zu1_Szene_mit_Mensch.stl): Gerät auf Tisch mit Person
   - [`Flaschenoeffner_1zu1_mit_Flasche.stl`](Flaschenoeffner_1zu1_mit_Flasche.stl): Gerät mit NRW-Flasche
