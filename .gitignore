@@ -7,3 +7,6 @@ Flaschenoeffner_1zu8_*.stl
 # Python
 __pycache__/
 *.pyc
+
+# Zugangsdaten der Firmware (nie hochladen)
+automatik/firmware/**/zugang.h

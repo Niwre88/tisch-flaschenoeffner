@@ -6,6 +6,11 @@ Gleitlager, Kugelknopf). Eine Person bedient ihn, die Flasche wird
 eingespannt, und die Höhe lässt sich für alle gängigen deutschen Mehrweg-Bierflaschen
 verstellen (171–270 mm Höhe, Ø 57–80 mm).
 
+> **Neu: Automatik-Variante TFO-A** im Ordner [`automatik/`](automatik/). Sie hat ein Magazin für
+> 8 Flaschen, eine automatische Kronkorken-Abfuhr und eine ESP32-Steuerung. Dazu gehören eine
+> detaillierte STEP-Baugruppe, Stromlaufplan, Schrittkette und Firmware.
+> [Animierte Vorschau](https://niwre88.github.io/tisch-flaschenoeffner/automatik/vorschau_automatik.html)
+
 ## Anschauen im Browser
 
 - **Interaktive 3D-Vorschau:** [niwre88.github.io/tisch-flaschenoeffner/vorschau.html](https://niwre88.github.io/tisch-flaschenoeffner/vorschau.html)

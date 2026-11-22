@@ -2,3 +2,7 @@
 *.py text eol=lf
 *.md text eol=lf
 *.html text eol=lf
+*.step -text
+*.pdf binary
+*.ino text eol=lf
+*.h text eol=lf
