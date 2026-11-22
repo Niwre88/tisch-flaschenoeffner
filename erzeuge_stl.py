@@ -209,12 +209,15 @@ STAND = 25.0                  # Standfläche Flasche (Gummimatte 3 mm)
 Y_APEX = 48.0                 # Scheitel des 90°-Prismas
 SPANN_Z = 73.0                # Höhe der Spannerachse
 PX = 80.0                     # X der Drehachse (= Mitte Säule)
-HY0, HY1 = -7.0, 1.0          # Hebel Flachstahl 30x8 liegt in Y -7..1
+HY0, HY1 = -9.0, 3.0          # Hebel Flachstahl 30x12 liegt in Y -9..3
 KNOPF_X = 370.0               # Kugelknopf
 HEBEL_X0 = 20.0               # linkes Hebelende (5 mm Abstand zum Kronkorken)
 EINLEGE_Y = -26.0             # Flaschenmitte beim Hinstellen (Kronkorken frei vom Haken)
 SPANNER_HUB = 40.0            # Hub des Schubstangenspanners
-SAEULE = (60.0, 15.0)         # Ecke der Säule (x, y), Profil 40x40
+SAEULE = (60.0, 16.0)         # Ecke der Säule (x, y), Profil 40x40
+SP_Y0, SP_Y1 = 6.0, 16.0      # Schlittenplatte (Alu 10) zwischen Hebel und Säule
+HAKEN_X = (30.0, 42.0)        # Schrauben M4: Magnethalter + Hebel + Hakenleiste
+SKALA_VERSATZ = 84.0          # Zeiger-Unterkante liegt 50 mm über der Drehachse (H + 34 + 50)
 
 
 def drehachse_z(H):
@@ -263,12 +266,12 @@ def grundgestell():
     add("normteil", quader(sx0 + 4, sx0 + 36, sy0 + 40, sy0 + 80, PL_O, PL_O + 4))
     for x, y in ((sx0 + 62, sy0 + 20), (sx0 + 20, sy0 + 62)):
         add("normteil", rot([(6.5, PL_O + 4), (6.5, PL_O + 9)], "z", (x, y, 0), 6))
-    # Maßband an der Säulen-Außenseite (+X), Nullpunkt um 34 mm versetzt,
-    # damit der Zeiger direkt die Flaschenhöhe anzeigt
+    # Maßband an der Säulen-Außenseite (+X). Wert H steht auf Höhe H + SKALA_VERSATZ,
+    # dann zeigt die Unterkante des Zeigers direkt die Flaschenhöhe an.
     xs = sx0 + 40
-    add("skala", quader(xs, xs + 0.6, sy0 + 22, sy0 + 38, 150, 410))
+    add("skala", quader(xs, xs + 0.6, sy0 + 22, sy0 + 38, 200, 410))
     for h in range(140, 290, 10):
-        z = h + 34
+        z = h + SKALA_VERSATZ
         lang = 9 if h % 50 == 0 else 5
         add("normteil", quader(xs + 0.5, xs + 0.9, sy0 + 38 - lang, sy0 + 38, z - 0.6, z + 0.6))
 
@@ -297,20 +300,22 @@ def schlitten():
     """Höhenverstellbarer Schlitten (Klasse 's'), Grundstellung für REF."""
     z = ZP
     s = "s"
-    add("eigen", quader(50, 110, 5, 15, z - 60, z + 50), s, teil="02_Schlittenplatte")
-    add("normteil", quader(76, 84, 15, 20, z - 60, z + 50), s)       # Passfeder DIN 6885 8x7
-    for zk in (z + 35, z - 45):                                      # Klemmhebel M8 (Kipp-Stil)
-        add("normteil", zyl("y", (PX, 0, zk), -6, 5, 11), s)
-        add("griff", stab((PX, -6, zk), (PX + 34, -10, zk + 14), 5, 4), s)
-        add("griff", kugel((PX + 34, -10, zk + 14), 7), s)
-    # Zeiger fürs Maßband: liegt auf Höhe der Drehachse. Die Skala ist um
-    # 34 mm versetzt aufgeklebt, daher zeigt er direkt die Flaschenhöhe an.
-    add("eigen", quader(101, 104, 15, 50, z - 5, z + 5), s, teil="06_Zeiger")
-    add("eigen", quader(101, 110, 5, 15, z - 5, z + 5), s, teil="06_Zeiger")
-    add("warn", quader(104, 105, 36, 54, z - 0.6, z + 0.6), s)
-    # Federhalter (Flachstahl-Winkel) mit Zugfeder und verstellbarem Gummipuffer
-    add("eigen", quader(95, 111, -1, 5, z + 22, z + 81), s, teil="05_Federhalter")
-    add("eigen", quader(95, 175, -12, 5, z + 75, z + 81), s, teil="05_Federhalter")
+    add("eigen", quader(50, 110, SP_Y0, SP_Y1, z - 60, z + 50), s, teil="02_Schlittenplatte")
+    # Zwei Passfedern DIN 6885 A 8x7 (L 20 und 18) zwischen Klemmhebeln und Drehachse
+    add("normteil", quader(76, 84, SP_Y1, SP_Y1 + 7, z - 36, z - 16), s)
+    add("normteil", quader(76, 84, SP_Y1, SP_Y1 + 7, z + 8, z + 26), s)
+    for zk in (z + 35, z - 45):                                      # Klemmhebel M8
+        add("normteil", zyl("y", (PX, 0, zk), SP_Y0 - 11, SP_Y0, 11), s)
+        add("griff", stab((PX, SP_Y0 - 11, zk), (PX + 34, SP_Y0 - 15, zk + 14), 5, 4), s)
+        add("griff", kugel((PX + 34, SP_Y0 - 15, zk + 14), 7), s)
+    # Zeiger: ebenes L-Blech (Alu 3) oben auf der Schlittenplatte, Arm reicht neben
+    # der Säule bis zum Maßband. Ablesekante = Unterkante (z + 50).
+    add("eigen", quader(80, 109, SP_Y0, SP_Y1, z + 50, z + 53), s, teil="06_Zeiger")
+    add("eigen", quader(101, 109, SP_Y1, SP_Y0 + 44, z + 50, z + 53), s, teil="06_Zeiger")
+    add("warn", quader(101, 109, SP_Y0 + 34, SP_Y0 + 44, z + 53, z + 53.3), s)
+    # Federhalter: Steg Flachstahl 16x10 und Arm Flachstahl 20x6 (2x M4 verschraubt)
+    add("eigen", quader(94, 110, SP_Y0 - 10, SP_Y0, z + 22, z + 75), s, teil="05_Federhalter")
+    add("eigen", quader(94, 174, -14, SP_Y0, z + 75, z + 81), s, teil="05_Federhalter")
     add("normteil", zyl("z", (130, -3, 0), z + 30, z + 88, 3), s)        # Gewindestange M6
     for zz in (z + 81, z + 70):
         add("normteil", rot([(5.5, zz), (5.5, zz + 5)], "z", (130, -3, 0), 6), s)
@@ -331,26 +336,29 @@ def hebel():
     # Hakenleiste: Flachstahl 40x10, Lippe mit Fase; Langlöcher im Hebel zum Nachstellen
     add("eigen", prisma([(13.4, z - 15), (48.4, z - 15), (48.4, z - 25), (19, z - 25)],
                         "y", -18, 17), h, teil="04_Hakenleiste")
-    for x in (28, 40):
-        add("normteil", zyl("z", (x, -3, 0), z + 15, z + 16, 4.5), h)    # Senkschrauben M5
-    # Magnethalter + Flachgreifer-Topfmagnet Ø16
-    add("eigen", quader(-12, 66, HY0 - 5, HY0, z - 1.5, z + 18.5), h, teil="08_Magnethalter")
-    add("normteil", zyl("z", (0, HY0 - 2.5, 0), z - 6, z - 1.5, 8), h)
-    for x in (50, 60):
-        add("normteil", zyl("y", (x, 0, z + 9), HY0 - 7, HY0 - 5, 4.5), h)
-    # Drehpunkt: Passschraube ISO 7379 Ø10 + 2 Bundbuchsen iglidur
-    add("normteil", zyl("y", (PX, 0, z), HY0 - 10, HY0, 8), h)
-    add("normteil", rot([(6, HY0 - 10.01), (6, HY0 - 7)], "y", (PX, 0, z), 6), h)
-    add("kunststoff", zyl("y", (PX, 0, z), HY0 - 1.5, HY0, 9), h)
-    add("kunststoff", zyl("y", (PX, 0, z), HY1, HY1 + 4, 9), h)
+    # Magnethalter (Flachstahl 20x5) oben auf dem Hebel; dieselben zwei Senkschrauben
+    # M4 halten Magnethalter, Hebel (Langlöcher) und Hakenleiste.
+    add("eigen", quader(-12, 48, -13, 7, z + 15, z + 20), h, teil="08_Magnethalter")
+    for x in HAKEN_X:
+        add("normteil", zyl("z", (x, -3, 0), z + 19.5, z + 20.3, 4), h)  # Senkkopf M4
+    add("normteil", zyl("z", (0, -3, 0), z - 1, z + 15, 4), h)            # Distanzhülse 16
+    add("normteil", zyl("z", (0, -3, 0), z - 5.5, z - 1, 8), h)           # Flachgreifer Ø16
+    add("normteil", rot([(3.5, z + 20), (3.5, z + 23.2)], "z", (0, -3, 0), 6), h)  # Mutter M4
+    # Drehpunkt: Passschraube ISO 7379 Ø10x16 + 2 Bundbuchsen + Scheibe
+    add("normteil", zyl("y", (PX, 0, z), HY0 - 11, HY0 - 1, 8), h)        # Kopf Ø16
+    add("normteil", rot([(4, HY0 - 11.01), (4, HY0 - 7)], "y", (PX, 0, z), 6), h)
+    add("kunststoff", zyl("y", (PX, 0, z), HY0 - 1, HY0, 9), h)           # Bund vorn
+    add("kunststoff", zyl("y", (PX, 0, z), HY1, HY1 + 1, 9), h)           # Bund hinten
+    add("normteil", rot([(5.3, HY1 + 1), (10, HY1 + 1), (10, SP_Y0), (5.3, SP_Y0)], "y",
+                        (PX, 0, z), 28, ring=True), h)                    # Scheibe 10
     # Federöse greift in Bohrung Ø5 im Hebel (7 mm unter Oberkante)
-    add("feder", rot([(4, -4.5), (5.5, -4.5), (5.5, 4.5), (4, 4.5)], "y", (162, -3, z + 8), 16,
+    add("feder", rot([(4, -7.5), (5.5, -7.5), (5.5, 7.5), (4, 7.5)], "y", (162, -3, z + 8), 16,
                      ring=True), h)
-    # Kugelknopf DIN 319 Ø40 auf Stiftschraube M10
-    add("normteil", zyl("z", (KNOPF_X, -3, 0), z + 15, z + 22, 5), h)
-    add("griff", rot([(9, z + 20), (12, z + 22)] +
-                     [(20 * math.sin(a), z + 40 - 20 * math.cos(a))
-                      for a in np.linspace(0.65, math.pi, 12)], "z", (KNOPF_X, -3, 0), 32), h)
+    # Kugelknopf DIN 319 Ø40 waagerecht zum Bediener, Gewindestift M10 quer durch den Hebel
+    add("normteil", zyl("y", (KNOPF_X, 0, z), HY0 - 8, HY1, 5), h)
+    add("griff", rot([(9, HY0 - 4), (12, HY0 - 6)] +
+                     [(20 * math.sin(a), HY0 - 26 + 20 * math.cos(a))
+                      for a in np.linspace(0.65, math.pi, 12)], "y", (KNOPF_X, 0, z), 32), h)
 
 
 def flasche_profil(H, D, form):
@@ -473,7 +481,7 @@ def vorschau(teile):
              "dz": drehachse_z(H) - ZP,
              "dy": (flaschen_y(D) - D / 2) - ref_vorne,
              "zp": drehachse_z(H), "yc": flaschen_y(D)} for fid, name, H, D, _ in FLASCHEN]
-    info = {"pivot": [PX, 0, ZP + TISCH_Z], "tisch": TISCH_Z, "knopf": ZP + 40,
+    info = {"pivot": [PX, 0, ZP + TISCH_Z], "tisch": TISCH_Z, "knopf": 0,
             "einlege_y": EINLEGE_Y, "hub": SPANNER_HUB, "ref_vorne": ref_vorne}
     html = (AUSGABE / "vorschau_vorlage.html").read_text(encoding="utf-8")
     html = (html.replace("/*DATEN*/[]", json.dumps(daten))
@@ -489,7 +497,7 @@ if __name__ == "__main__":
     hebel()
     flaschen()
     tisch()
-    knopf = (KNOPF_X, -3, TISCH_Z + ZP + 58)
+    knopf = (KNOPF_X, HY0 - 26, TISCH_Z + ZP + 30)    # Handfläche auf dem Kugelknopf
     spanngriff = (0, -176, TISCH_Z + PL_O + 172)
     mensch(hand_r=knopf, hand_l=spanngriff)
 

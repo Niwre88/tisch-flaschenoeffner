@@ -17,7 +17,12 @@ verstellen (171–270 mm Höhe, Ø 57–80 mm).
   - [`Flaschenoeffner_1zu1_ohne_Flasche.stl`](Flaschenoeffner_1zu1_ohne_Flasche.stl): nur das Gerät
   - [`Flaschenoeffner_1zu3_Druckmodell.stl`](Flaschenoeffner_1zu3_Druckmodell.stl): Anschauungsmodell für den 3D-Drucker
   - [`teile/`](teile/): einzelne Eigenfertigungsteile
-- **Stückliste, Bohrbilder, Auslegung:** [`Stueckliste.md`](Stueckliste.md)
+- **Technische Dokumentation (PDF, 16 Seiten):** [`Technische_Dokumentation_TFO.pdf`](Technische_Dokumentation_TFO.pdf).
+  Enthält Deckblatt, technische Daten, Montageanleitung, Einstell- und Wartungsblatt,
+  Zusammenbauzeichnung TFO-000 mit Positionsnummern, Stückliste und die bemaßten
+  Einzelteilzeichnungen TFO-001 … TFO-008. Die Zeichnungen haben ein Schriftfeld nach
+  DIN EN ISO 7200 und folgen Projektionsmethode 1.
+- **Stückliste:** [`Stueckliste.md`](Stueckliste.md)
 
 ## Funktionsprinzip
 
@@ -33,10 +38,12 @@ in Y, also entlang der Hakenleiste. Deshalb greift der Haken bei allen Sorten.
 
 ## Dateien neu erzeugen
 
-Alle Modelle entstehen aus `erzeuge_stl.py` (Python 3 + numpy):
+Alle Modelle entstehen aus `erzeuge_stl.py`, die Dokumentation und die Stückliste aus
+`zeichnungen.py`. Beide brauchen nur Python 3 und numpy:
 
 ```
 python erzeuge_stl.py
+python zeichnungen.py
 ```
 
 Maße ändern sich im Skript im Abschnitt „Hauptmaße der Maschine“.

@@ -142,7 +142,7 @@ function zeichne() {
 }
 
 function tabelle() {
-  const zp = fl.zp, knopf = INFO.tisch + zp + 40;
+  const zp = fl.zp, knopf = INFO.tisch + zp + INFO.knopf;   // Knopfmitte auf Achshöhe
   document.getElementById("tab").innerHTML = `
     <tr><td>Flaschenhöhe / Ø</td><td>${fl.H} / ${fl.D} mm</td></tr>
     <tr><td>Skala einstellen auf</td><td>${fl.H} mm</td></tr>
