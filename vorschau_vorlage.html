@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tisch-Flaschenöffner</title>
+<style>
+  :root { --bg:#eef1f5; --panel:#ffffffe8; --text:#1d2633; --dim:#5d6b7d; --acc:#1f6fd1; --line:#cfd7e2; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; } }
+  :root[data-theme="dark"] { --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:13px/1.45 "Segoe UI", system-ui, sans-serif; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; cursor:grab; touch-action:none; }
+  #ui { position:fixed; left:12px; top:12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; width:300px; max-height:calc(100vh - 48px); overflow:auto; }
+  h1 { margin:0 0 2px; font-size:15px; }
+  .dim { color:var(--dim); font-size:12px; }
+  button, select { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px; margin:2px 2px 2px 0; cursor:pointer; font:inherit; }
+  select { width:100%; margin-top:2px; }
+  button:hover, select:hover { border-color:var(--acc); }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  label { display:block; margin-top:8px; }
+  table { border-collapse:collapse; margin-top:8px; width:100%; }
+  td { padding:1px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .leg { display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; margin-top:8px; font-size:12px; }
+  .leg span::before { content:""; display:inline-block; width:10px; height:10px; border-radius:2px;
+    margin-right:5px; vertical-align:-1px; background:var(--c); }
+  @media (max-width:600px) { #ui { width:calc(100vw - 48px); max-height:45vh; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h1>Tisch-Flaschenöffner</h1>
+  <div class="dim">Ziehen = drehen · Mausrad/Pinch = zoomen</div>
+  <div>
+    <button data-v="35,-20,1">Schräg</button><button data-v="0,-8,1">Bediener</button>
+    <button data-v="90,-5,1">Seite</button><button data-v="25,-20,3">Nah</button>
+  </div>
+  <label>Flaschensorte (Höhe wird eingestellt)
+    <select id="fl"></select></label>
+  <label>Spanner: <span id="sp">gespannt</span>
+    <input id="spr" type="range" min="0" max="1" step="0.05" value="1"></label>
+  <label>Hebel drücken: <span id="wv">0</span>°
+    <input id="w" type="range" min="0" max="20" step="0.5" value="0"></label>
+  <button id="play">▶ Ablauf zeigen</button>
+  <button id="pm">Mensch aus</button><button id="pt">Tisch aus</button>
+  <table id="tab"></table>
+  <div class="leg">
+    <span style="--c:#c3cbd6">Alu-Profil</span><span style="--c:#5f6672">Normteil</span>
+    <span style="--c:#3f86d6">Eigenfertigung</span><span style="--c:#f08a24">3D-Druck</span>
+    <span style="--c:#25272b">Gummi</span><span style="--c:#c8262d">Griffe</span>
+  </div>
+</div>
+<script>
+const DATEN = /*DATEN*/[];
+const FLASCHEN = /*FLASCHEN*/[];
+const INFO = /*INFO*/{};
+const FARBE = {
+  profil:[195,203,214], normteil:[95,102,114], eigen:[63,134,214], druck:[240,138,36],
+  gummi:[37,39,43], griff:[200,38,45], feder:[170,176,184], kunststoff:[230,225,210],
+  skala:[245,220,70], warn:[230,40,40], glas:[110,62,22], etikett:[235,230,215],
+  kronkorken:[212,175,55], tisch:[176,140,104], tischplatte:[176,140,104], mensch:[196,184,172]
+};
+const tris = [];
+for (const p of DATEN) {
+  const b = Uint8Array.from(atob(p.d), c => c.charCodeAt(0)), f = new Float32Array(b.buffer);
+  for (let i = 0; i < f.length; i += 9) tris.push({ v: f.subarray(i, i + 9), w: new Float32Array(f.subarray(i, i + 9)), g: p.g, k: p.k, f: p.f, s: p.s });
+}
+let az = 35, el = -20, zoom = 1, winkel = 0, spann = 1, fl = FLASCHEN[0], zeigeM = true, zeigeT = true;
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const L = (() => { const l = [-0.4, -0.65, 0.65], n = Math.hypot(...l); return l.map(x => x / n); })();
+const dunkel = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() === "#10151d";
+
+function stellung() {
+  const a = winkel * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const px = INFO.pivot[0], pz = INFO.pivot[2] + fl.dz;
+  // Spanner: offen = um den Hub zurückgezogen. Die Flasche steht zuerst vorn
+  // (Einlegeposition) und wird von der Druckschraube ins Prisma geschoben.
+  const dyK = fl.dy - (1 - spann) * INFO.hub;
+  const vorne = INFO.ref_vorne + dyK;               // aktuelle Lage der Gummikappe
+  const dyF = Math.max(INFO.einlege_y, vorne + fl.D / 2) - fl.yc;
+  for (const t of tris) {
+    const v = t.v, w = t.w;
+    for (let k = 0; k < 9; k += 3) {
+      let x = v[k], y = v[k + 1], z = v[k + 2];
+      if (t.k === "s" || t.k === "h") z += fl.dz;
+      if (t.k === "k") y += dyK;
+      if (t.f) y += dyF;
+      if ((t.k === "h" || t.k === "c") && a) {
+        const dx = x - px, dz = z - pz;
+        x = px + c * dx + s * dz; z = pz - s * dx + c * dz;
+      }
+      w[k] = x; w[k + 1] = y; w[k + 2] = z;
+    }
+  }
+}
+
+function zeichne() {
+  const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
+  const dk = dunkel();
+  g.fillStyle = dk ? "#10151d" : "#eef1f5"; g.fillRect(0, 0, W, H);
+  const a = az * Math.PI / 180, e = el * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), ce = Math.cos(e), se = Math.sin(e);
+  const nah = zoom > 1.5, cxw = nah ? 60 : 150, cyw = nah ? 0 : -150, czw = nah ? INFO.tisch + 200 : 800;
+  const s = Math.min(W, H) / 2000 * zoom, cx = W / 2 + (W > 900 ? 120 * devicePixelRatio : 0), cy = H / 2;
+  const P = (x, y, z) => {
+    x -= cxw; y -= cyw; z -= czw;
+    const x1 = x * ca - y * sa, y1 = x * sa + y * ca;
+    // el < 0: Kamera oberhalb. Tiefe wächst vom Betrachter weg.
+    return [cx + x1 * s, cy - (z * ce - y1 * se) * s, y1 * ce + z * se];
+  };
+  g.lineWidth = 1; g.strokeStyle = dk ? "rgba(140,170,210,0.12)" : "rgba(40,60,90,0.10)";
+  for (let i = -1000; i <= 800; i += 100) { const p = P(-700, i, 0), q = P(1100, i, 0); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); }
+  for (let i = -700; i <= 1100; i += 100) { const p = P(i, -1000, 0), q = P(i, 800, 0); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); }
+  const liste = [];
+  for (const t of tris) {
+    if (t.f && t.f !== fl.id) continue;
+    if (!zeigeM && t.s === "mensch") continue;
+    if (!zeigeT && t.s === "tisch") continue;
+    const w = t.w;
+    const ux = w[3] - w[0], uy = w[4] - w[1], uz = w[5] - w[2], vx = w[6] - w[0], vy = w[7] - w[1], vz = w[8] - w[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    const ny1 = nx * sa + ny * ca;
+    if (ny1 * ce + nz * se >= 0) continue;          // Rückseite
+    if (t.g === "tischplatte" && Math.abs(nz) < 0.9) continue;  // Fugen der Tischfelder
+    const p0 = P(w[0], w[1], w[2]), p1 = P(w[3], w[4], w[5]), p2 = P(w[6], w[7], w[8]);
+    const f = FARBE[t.g] || [255, 0, 255];
+    const d = Math.max(0, nx * L[0] + ny * L[1] + nz * L[2]);
+    const k = 0.38 + 0.62 * d, sp = t.g === "glas" || t.g === "kronkorken" ? Math.pow(d, 20) * 120 : 0;
+    const col = `rgb(${Math.min(255, f[0] * k + sp) | 0},${Math.min(255, f[1] * k + sp) | 0},${Math.min(255, f[2] * k + sp) | 0})`;
+    liste.push([p0[2] + p1[2] + p2[2], p0, p1, p2, col]);
+  }
+  liste.sort((A, B) => B[0] - A[0]);
+  g.lineWidth = 0.6;
+  for (const [, p0, p1, p2, col] of liste) {
+    g.fillStyle = g.strokeStyle = col;
+    g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.closePath(); g.fill(); g.stroke();
+  }
+}
+
+function tabelle() {
+  const zp = fl.zp, knopf = INFO.tisch + zp + 40;
+  document.getElementById("tab").innerHTML = `
+    <tr><td>Flaschenhöhe / Ø</td><td>${fl.H} / ${fl.D} mm</td></tr>
+    <tr><td>Skala einstellen auf</td><td>${fl.H} mm</td></tr>
+    <tr><td>Drehachse über Tisch</td><td>${zp.toFixed(0)} mm</td></tr>
+    <tr><td>Knopfhöhe über Boden</td><td>${knopf.toFixed(0)} mm</td></tr>
+    <tr><td>Knopf gedrückt (20°)</td><td>${(knopf - 290 * Math.sin(20 * Math.PI / 180)).toFixed(0)} mm</td></tr>
+    <tr><td>Hebelübersetzung</td><td>≈ 4,4 : 1</td></tr>
+    <tr><td>Tischhöhe (Annahme)</td><td>${INFO.tisch} mm</td></tr>`;
+}
+
+const sel = document.getElementById("fl");
+FLASCHEN.forEach((f, i) => sel.add(new Option(`${f.name}  (${f.H} mm, Ø ${f.D})`, i)));
+sel.onchange = () => { fl = FLASCHEN[sel.value]; setze(); };
+const w = document.getElementById("w"), spr = document.getElementById("spr");
+function setze() {
+  winkel = +w.value; spann = +spr.value;
+  document.getElementById("wv").textContent = winkel.toFixed(0);
+  document.getElementById("sp").textContent = spann > 0.95 ? "gespannt" : spann < 0.05 ? "offen" : "…";
+  stellung(); tabelle(); zeichne();
+}
+w.oninput = spr.oninput = setze;
+document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { [az, el, zoom] = b.dataset.v.split(",").map(Number); zeichne(); });
+document.getElementById("pm").onclick = e => { zeigeM = !zeigeM; e.target.textContent = zeigeM ? "Mensch aus" : "Mensch an"; zeichne(); };
+document.getElementById("pt").onclick = e => { zeigeT = !zeigeT; e.target.textContent = zeigeT ? "Tisch aus" : "Tisch an"; zeichne(); };
+let laeuft = false;
+document.getElementById("play").onclick = () => {
+  laeuft = !laeuft; const t0 = performance.now();
+  if (laeuft) requestAnimationFrame(function schritt(t) {
+    if (!laeuft) return;
+    const p = ((t - t0) / 6000) % 1;               // 6-s-Zyklus: spannen, öffnen, lösen
+    spr.value = p < 0.15 ? p / 0.15 : p < 0.85 ? 1 : 1 - (p - 0.85) / 0.15;
+    w.value = p < 0.2 ? 0 : p < 0.5 ? (p - 0.2) / 0.3 * 20 : p < 0.75 ? 20 - (p - 0.5) / 0.25 * 20 : 0;
+    setze(); requestAnimationFrame(schritt);
+  });
+};
+let zieh = null, pins = new Map(), pinchD = 0;
+cv.addEventListener("pointerdown", e => { pins.set(e.pointerId, [e.clientX, e.clientY]); zieh = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointerup", e => { pins.delete(e.pointerId); zieh = null; pinchD = 0; });
+cv.addEventListener("pointermove", e => {
+  if (pins.has(e.pointerId)) pins.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pins.size === 2) {
+    const [p, q] = [...pins.values()], d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (pinchD) { zoom *= d / pinchD; zeichne(); } pinchD = d; return;
+  }
+  if (!zieh) return;
+  az += (e.clientX - zieh[0]) * 0.4; el = Math.max(-89, Math.min(60, el + (e.clientY - zieh[1]) * 0.4));
+  zieh = [e.clientX, e.clientY]; zeichne();
+});
+cv.addEventListener("wheel", e => { e.preventDefault(); zoom *= e.deltaY < 0 ? 1.1 : 0.9; zeichne(); }, { passive: false });
+addEventListener("resize", zeichne);
+setze();
+</script>
+</body>
+</html>

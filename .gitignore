@@ -1,0 +1,9 @@
+# Lokale Einstellungen von Claude Code
+.claude/
+
+# Veraltete Dateien aus dem früheren Stand-Entwurf
+Flaschenoeffner_1zu8_*.stl
+
+# Python
+__pycache__/
+*.pyc
