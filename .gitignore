@@ -9,4 +9,4 @@ __pycache__/
 *.pyc
 
 # Zugangsdaten der Firmware (nie hochladen)
-automatik/firmware/**/zugang.h
+**/zugang.h

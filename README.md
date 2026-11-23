@@ -1,64 +1,52 @@
-# Tisch-Flaschenöffner
+# Flaschenöffner-Projekt
 
-Manuell betätigter Kronkorken-Öffner für den Tisch, gebaut fast nur aus Normteilen
-(Alu-Systemprofil 40×40, Klemmhebel, Schubstangenspanner, Passschraube,
-Gleitlager, Kugelknopf). Eine Person bedient ihn, die Flasche wird
-eingespannt, und die Höhe lässt sich für alle gängigen deutschen Mehrweg-Bierflaschen
-verstellen (171–270 mm Höhe, Ø 57–80 mm).
+Kronkorken-Öffner für Bierflaschen, vom einfachen Handgerät für den Tisch bis zum
+Automaten mit Magazin und ESP32-Steuerung. Konstruiert mit Python (numpy, CadQuery),
+gebaut fast nur aus Normteilen.
 
-> **Automatik-Variante TFO-A (Index B)** im Ordner [`automatik/`](automatik/): ein
-> Flaschenöffner-Automat mit Magazin für 8 Flaschen. Er wird über ein verriegeltes Bedienfach
-> befüllt und entleert, öffnet auf Knopfdruck oder per Alexa und wirft die Kronkorken in eine
-> Schublade. Dazu gehören eine STEP-Baugruppe, eine Kollisionsprüfung, Stromlaufplan, GRAFCET
-> und ESP32-Firmware.
-> [Animierte Vorschau](https://niwre88.github.io/tisch-flaschenoeffner/automatik/vorschau_automatik.html) ·
-> [Prüfbericht](automatik/PRUEFBERICHT.md)
+## Übersicht der Stände
 
-## Anschauen im Browser
+| Ordner | Was | Status | 3D-Vorschau |
+|---|---|---|---|
+| [`1_Handgeraet_TFO/`](1_Handgeraet_TFO/) | **Handgerät TFO**: manueller Tisch-Flaschenöffner, Flasche wird eingespannt, Hebel mit Kugelknopf | fertig konstruiert, Zeichnungssatz (PDF, 16 Seiten) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/1_Handgeraet_TFO/vorschau.html) |
+| [`2_Automat_TFO-A/`](2_Automat_TFO-A/) | **Automat TFO-A, Index B** (aktuell): Ausgabeautomat mit Magazin für 8 Flaschen, Bedienfach, Kronkorken-Schublade, ESP32 | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html) |
+| [`2_Automat_TFO-A/archiv_Index_A/`](2_Automat_TFO-A/archiv_Index_A/) | **Automat TFO-A, Index A**: erster Automatik-Entwurf im Chargenbetrieb | **verworfen**, nicht bauen (32 Kollisionen, 9 Logikfehler) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/archiv_Index_A/vorschau_automatik.html) |
+| [`gemeinsam/`](gemeinsam/) | Werkzeuge: Generator des Handgeräts, Zeichnungs- und PDF-Funktionen, Flaschenmaße | wird von 1 und 2 benutzt | – |
 
-- **Interaktive 3D-Vorschau:** [niwre88.github.io/tisch-flaschenoeffner/vorschau.html](https://niwre88.github.io/tisch-flaschenoeffner/vorschau.html)
-  – Flaschensorte wählen, Spanner und Hebel bewegen, Ablauf abspielen. Läuft direkt
-  im Browser, ohne Konto und ohne Installation.
-- **STL-Dateien** zeigt GitHub direkt als drehbares 3D-Modell an, wenn man sie anklickt:
-  - [`Flaschenoeffner_1zu1_Szene_mit_Mensch.stl`](Flaschenoeffner_1zu1_Szene_mit_Mensch.stl): Gerät auf Tisch mit Person
-  - [`Flaschenoeffner_1zu1_mit_Flasche.stl`](Flaschenoeffner_1zu1_mit_Flasche.stl): Gerät mit NRW-Flasche
-  - [`Flaschenoeffner_1zu1_ohne_Flasche.stl`](Flaschenoeffner_1zu1_ohne_Flasche.stl): nur das Gerät
-  - [`Flaschenoeffner_1zu3_Druckmodell.stl`](Flaschenoeffner_1zu3_Druckmodell.stl): Anschauungsmodell für den 3D-Drucker
-  - [`teile/`](teile/): einzelne Eigenfertigungsteile
-- **Technische Dokumentation (PDF, 16 Seiten):** [`Technische_Dokumentation_TFO.pdf`](Technische_Dokumentation_TFO.pdf).
-  Enthält Deckblatt, technische Daten, Montageanleitung, Einstell- und Wartungsblatt,
-  Zusammenbauzeichnung TFO-000 mit Positionsnummern, Stückliste und die bemaßten
-  Einzelteilzeichnungen TFO-001 … TFO-008. Die Zeichnungen haben ein Schriftfeld nach
-  DIN EN ISO 7200 und folgen Projektionsmethode 1.
-- **Stückliste:** [`Stueckliste.md`](Stueckliste.md)
+**Was heißt „Index“?** Wie bei Zeichnungen in der Fertigung kennzeichnet der Index den
+Änderungsstand eines Produkts. TFO-A ist der Automat, Index A sein erster Stand, Index B
+die überarbeitete Fassung. Warum Index A verworfen wurde, steht im
+[Prüfbericht](2_Automat_TFO-A/PRUEFBERICHT.md).
 
-## Funktionsprinzip
+## Entwicklung
 
-1. Den Schlitten mit zwei Klemmhebeln auf die Flaschenhöhe einstellen. Das Maßband
-   zeigt direkt die Flaschenhöhe an.
-2. Die Flasche vorn hinstellen. Der Schubstangenspanner schiebt sie in ein
-   90°-Prisma, dabei gleitet der Kronkorken über die Hakenleiste.
-3. Den Kugelknopf drücken. Der zweiseitige Hebel (≈ 4,4 : 1) hebt den Kronkorken
-   ab, ein Magnet fängt ihn.
+1. **Handgerät TFO:** Tischgerät aus Normteilen, höhenverstellbar für alle gängigen
+   Mehrwegflaschen, Bedienung durch eine Person.
+2. **Automat TFO-A Index A:** Hebel und Hakenleiste des Handgeräts, angetrieben. Er
+   öffnet eine Charge von 8 Flaschen nacheinander. Bei der Prüfung fielen Kollisionen
+   (Trichter, Schlauch und Aktorhalter in der Flaschenbahn) und Logikfehler auf (keine
+   Ausgabe der Flaschen, keine Erkennung des Kronkorkens, Beladen nur bei offener Haube).
+3. **Automat TFO-A Index B:** neu aufgebaut als Ausgabeautomat. Befüllen und Entnehmen
+   über ein verriegeltes Fach, Öffnen auf Knopfdruck oder per Alexa, Kronkorken in eine
+   Schublade. Jede Bewegungsstellung ist auf Kollisionen gerechnet.
 
-Das Prisma zentriert jede Flasche in X. Ein anderer Durchmesser verschiebt sie nur
-in Y, also entlang der Hakenleiste. Deshalb greift der Haken bei allen Sorten.
+Feste Stände lassen sich auch über Git-Tags abrufen:
+`TFO-1.0` (Handgerät), `TFO-A-Index-A` und `TFO-A-Index-B`.
 
-## Dateien neu erzeugen
+## Alles neu erzeugen
 
-Alle Modelle entstehen aus `erzeuge_stl.py`, die Dokumentation und die Stückliste aus
-`zeichnungen.py`. Beide brauchen nur Python 3 und numpy:
+Benötigt Python 3 mit `numpy`; für den Automaten zusätzlich `cadquery`.
 
 ```
-python erzeuge_stl.py
-python zeichnungen.py
+python gemeinsam/erzeuge_stl.py
+python gemeinsam/zeichnungen.py
+python 2_Automat_TFO-A/pruefe_kollisionen.py
+python 2_Automat_TFO-A/erzeuge_step.py
+python 2_Automat_TFO-A/erzeuge_automatik.py
+python 2_Automat_TFO-A/doku_automatik.py
 ```
 
-Maße ändern sich im Skript im Abschnitt „Hauptmaße der Maschine“.
-`vorschau_vorlage.html` ist die Vorlage, in die das Skript die Modelldaten einsetzt.
+## Alte Links
 
-## Quellen
-
-Flaschenmaße: VLB Berlin, Tabelle der Standardpoolflaschen (Stand Jan. 2025).
-Kronkorken: DIN EN 17177 und die technischen Lieferbedingungen für Kronenkorken.
-Details und Links stehen in der Stückliste.
+Die früheren Vorschau-Adressen (`/vorschau.html` und `/automatik/vorschau_automatik.html`)
+leiten automatisch auf die neuen Ordner weiter.

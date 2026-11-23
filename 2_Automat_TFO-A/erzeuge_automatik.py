@@ -15,7 +15,7 @@ import numpy as np
 
 HIER = Path(__file__).parent
 sys.path.insert(0, str(HIER))
-sys.path.insert(0, str(HIER.parent))
+sys.path.insert(0, str(HIER.parent / "gemeinsam"))
 import modell_a as A    # noqa: E402
 import erzeuge_stl as M  # noqa: E402
 

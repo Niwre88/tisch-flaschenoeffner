@@ -30,7 +30,7 @@ from pathlib import Path
 
 import numpy as np
 
-AUSGABE = Path(__file__).parent
+AUSGABE = Path(__file__).parent.parent / "1_Handgeraet_TFO"   # Ausgabeordner des Handgeräts
 TEILE_ORDNER = AUSGABE / "teile"
 
 # =====================================================================
@@ -483,7 +483,7 @@ def vorschau(teile):
              "zp": drehachse_z(H), "yc": flaschen_y(D)} for fid, name, H, D, _ in FLASCHEN]
     info = {"pivot": [PX, 0, ZP + TISCH_Z], "tisch": TISCH_Z, "knopf": 0,
             "einlege_y": EINLEGE_Y, "hub": SPANNER_HUB, "ref_vorne": ref_vorne}
-    html = (AUSGABE / "vorschau_vorlage.html").read_text(encoding="utf-8")
+    html = (Path(__file__).parent / "vorschau_vorlage_TFO.html").read_text(encoding="utf-8")
     html = (html.replace("/*DATEN*/[]", json.dumps(daten))
                 .replace("/*FLASCHEN*/[]", json.dumps(meta))
                 .replace("/*INFO*/{}", json.dumps(info)))

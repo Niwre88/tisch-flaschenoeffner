@@ -26,7 +26,7 @@ import cadquery as cq
 from cadquery import Color, Location, Vector
 
 HIER = Path(__file__).parent
-sys.path.insert(0, str(HIER.parent))
+sys.path.insert(0, str(HIER.parent / "gemeinsam"))
 import erzeuge_stl as M  # noqa: E402  (Flaschendaten und -profile)
 
 V = Vector

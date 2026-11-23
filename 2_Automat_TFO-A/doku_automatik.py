@@ -6,7 +6,7 @@ GRAFCET, Sicherheitskonzept, Betriebsmittel, I/O-Liste, Stromlaufplan (3 Blätte
 Zusammenbau aus der STEP-Baugruppe, Stückliste (aus dem 3D-Modell gezählt),
 Inbetriebnahme.
 
-Nutzt die PDF-Funktionen aus ../zeichnungen.py.   Aufruf:  python doku_automatik.py
+Nutzt die PDF-Funktionen aus ../gemeinsam/zeichnungen.py.   Aufruf:  python doku_automatik.py
 """
 import os
 import re
@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 HIER = Path(__file__).parent
-sys.path.insert(0, str(HIER.parent))
+sys.path.insert(0, str(HIER.parent / "gemeinsam"))
 sys.path.insert(0, str(HIER))
 import zeichnungen as Z  # noqa: E402
 import modell_a as A     # noqa: E402

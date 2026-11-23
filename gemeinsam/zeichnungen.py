@@ -23,7 +23,7 @@ import numpy as np
 
 import erzeuge_stl as M
 
-AUSGABE = Path(__file__).parent / "Technische_Dokumentation_TFO.pdf"
+AUSGABE = M.AUSGABE / "Technische_Dokumentation_TFO.pdf"
 DATUM = "2026-11-22"
 TITEL = "Tisch-Flaschenöffner"
 MM = 72 / 25.4
@@ -1471,7 +1471,7 @@ def stueckliste_md():
           "(https://www.vlb-berlin.org/sites/default/files/2020-04/STLB%20Kronenkorken_November%202016_0.pdf)",
           "- [DIN EN 17177](https://www.dinmedia.de/en/standard/din-en-17177/314562097): "
           "Kronenkorken 26 mm Durchmesser, 6 mm Höhe", ""]
-    (Path(__file__).parent / "Stueckliste.md").write_text("\n".join(z), encoding="utf-8")
+    (M.AUSGABE / "Stueckliste.md").write_text("\n".join(z), encoding="utf-8")
 
 
 # =====================================================================
