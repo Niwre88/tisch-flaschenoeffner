@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flaschenöffner Automatik</title>
+<title>Flaschenöffner-Automat</title>
 <style>
-  :root { --bg:#eef1f5; --panel:#ffffffe8; --text:#1d2633; --dim:#5d6b7d; --acc:#1f6fd1; --line:#cfd7e2; --ok:#1d8a4a; }
+  :root { --bg:#eef1f5; --panel:#ffffffe8; --text:#1d2633; --dim:#5d6b7d; --acc:#1f6fd1; --line:#cfd7e2; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-    --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; --ok:#4cc27e; } }
-  :root[data-theme="dark"] { --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; --ok:#4cc27e; }
+    --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; } }
+  :root[data-theme="dark"] { --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
     font:13px/1.45 "Segoe UI", system-ui, sans-serif; overflow:hidden; }
   canvas { display:block; width:100vw; height:100vh; cursor:grab; touch-action:none; }
   #ui { position:fixed; left:12px; top:12px; background:var(--panel); border:1px solid var(--line);
-    border-radius:10px; padding:10px 12px; width:310px; max-height:calc(100vh - 48px); overflow:auto; }
+    border-radius:10px; padding:10px 12px; width:320px; max-height:calc(100vh - 48px); overflow:auto; }
   h1 { margin:0 0 2px; font-size:15px; }
   .dim { color:var(--dim); font-size:12px; }
   button, select { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:6px;
@@ -24,253 +24,262 @@
   input[type=range] { width:100%; accent-color:var(--acc); }
   #schritt { margin-top:8px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); min-height:38px; }
   #schritt b { color:var(--acc); }
+  #taschen { display:flex; gap:4px; margin-top:6px; }
+  #taschen span { flex:1; text-align:center; border:1px solid var(--line); border-radius:5px; padding:2px 0; font-size:11px; }
+  .zu { background:#d9a72a33; } .offen { background:#2a8a4a33; } .leer { opacity:.5; }
   table { border-collapse:collapse; margin-top:6px; width:100%; font-size:12px; }
   td { padding:1px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
-  .an { color:var(--ok); font-weight:600; }
+  #fehler { color:#c33; margin-top:6px; }
   @media (max-width:600px) { #ui { width:calc(100vw - 48px); max-height:45vh; } }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="ui">
-  <h1>Flaschenöffner Automatik TFO-A</h1>
+  <h1>Flaschenöffner-Automat TFO-A</h1>
   <div class="dim">Ziehen = drehen · Mausrad/Pinch = zoomen</div>
   <div>
-    <button data-v="30,-24,1">Schräg</button><button data-v="0,-10,1">Bediener</button>
-    <button data-v="0,-89,1.3">Oben</button><button data-v="35,-18,2.6">Kopf nah</button>
+    <button data-v="25,-24,1">Schräg</button><button data-v="0,-10,1">Bediener</button>
+    <button data-v="0,-89,1.2">Oben</button><button data-v="40,-16,2.8">Kopf nah</button>
   </div>
-  <label>Flaschensorte im Magazin
+  <label>Flaschensorte (Geländer darauf eingestellt)
     <select id="fl"></select></label>
   <div style="margin-top:6px">
-    <button id="play">⏸ Pause</button>
-    <button id="pm">Mensch aus</button><button id="ph">Haube aus</button>
+    <button id="play">⏸ Pause</button><button id="pm">Mensch an</button><button id="ph">Haube aus</button>
   </div>
   <label>Geschwindigkeit <input id="tempo" type="range" min="0.25" max="3" step="0.25" value="1"></label>
   <div id="schritt"></div>
+  <div class="dim" style="margin-top:6px">Taschenbelegung (S = Station, F = Bedienfach)</div>
+  <div id="taschen"></div>
   <table id="tab"></table>
+  <div id="fehler"></div>
 </div>
 <script>
 const DATEN = /*DATEN*/[];
 const FLASCHEN = /*FLASCHEN*/[];
 const INFO = /*INFO*/{};
-const FARBE = {
-  profil:[195,203,214], normteil:[95,102,114], eigen:[63,134,214], kunststoff:[236,236,228],
-  gummi:[37,39,43], griff:[200,38,45], feder:[170,176,184], elektro:[70,76,86], sensor:[40,150,190],
-  aktor:[40,44,52], schlauch:[60,64,72], warn:[220,40,40], lampe_gruen:[40,170,80],
-  lampe_gelb:[240,190,30], lampe_blau:[40,110,210], haube:[170,210,240],
-  glas:[110,62,22], etikett:[235,230,215], kronkorken:[212,175,55],
-  tisch:[176,140,104], tischplatte:[176,140,104], mensch:[196,184,172]
-};
-const T = INFO.tisch;
-function dekodiere(s) { const b = Uint8Array.from(atob(s), c => c.charCodeAt(0)); return new Float32Array(b.buffer); }
-const statisch = [];
-for (const p of DATEN) {
-  const f = dekodiere(p.d);
-  for (let i = 0; i < f.length; i += 9)
-    statisch.push({ v: f.subarray(i, i + 9), w: new Float32Array(f.subarray(i, i + 9)), g: p.g, k: p.k, s: p.s });
-}
-const netze = FLASCHEN.map(f => ({ glas: dekodiere(f.glas), etikett: dekodiere(f.etikett), kork: dekodiere(f.kork) }));
-
+const T = INFO.tisch, N = INFO.n;
+const FARBE = Object.assign({}, INFO.farben, { glas:[110,62,22,1], etikett:[235,230,215,1], kronkorken:[212,175,55,1] });
+function dek(s) { const b = Uint8Array.from(atob(s), c => c.charCodeAt(0)); return new Float32Array(b.buffer); }
 let fi = 0, fl = FLASCHEN[0];
-let az = 30, el = -24, zoom = 1, zeigeM = true, zeigeH = true, laeuft = true, tempo = 1, zeit = 0;
-const cv = document.getElementById("c"), g = cv.getContext("2d");
-const L = (() => { const l = [-0.4, -0.65, 0.65], n = Math.hypot(...l); return l.map(x => x / n); })();
-const dunkel = () => getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() === "#10151d";
-
-// ---------------------------------------------------------------- Ablauf
-const N = INFO.n, DELTA = 3 / 150 * 180 / Math.PI;     // 3 mm Feinpositionierung in Grad
-const TL = 4.0, TZ = 6.0;                                // Ladezeit, Zykluszeit je Flasche
-const SCHRITTE = [
-  [0.0, 1.2, "S1", "Sternrad taktet die nächste Flasche in die Vorposition (3 mm vor der Station)."],
-  [1.2, 2.0, "S2", "Z-Achse fährt den Kopf ab, bis der Magnetstempel den Kronkorken berührt."],
-  [2.0, 2.3, "S3", "Sternrad fährt die letzten 3 mm: Kronkorkenrand gleitet über die Hakenlippe."],
-  [2.3, 2.9, "S4", "Linearantrieb zieht den Hebel: Haken hebelt den Kronkorken ab (Stempel = Drehpunkt)."],
-  [2.9, 3.3, "S5", "Hebel zurück, der Kronkorken haftet am Magnetstempel."],
-  [3.3, 4.1, "S6", "Kopf fährt in die sichere Höhe."],
-  [4.1, 4.7, "S7", "Servo-Abstreifer schiebt den Kronkorken in den Trichter."],
-  [4.7, 5.3, "S8", "Kronkorken fällt durch den Schlauch in den Behälter (Gabellichtschranke zählt)."],
-  [5.3, 6.0, "S9", "Abstreifer in Grundstellung, nächste Flasche."],
-];
+let az = 25, el = -24, zoom = 1, zeigeM = false, zeigeH = true, laeuft = true, tempo = 1, zeit = 0;
 const glatt = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
-const lin = (a, b, t) => a + (b - a) * glatt(t);
+const mod = (a, m) => ((a % m) + m) % m;
 
-function zustand(t) {
-  const H = fl.H, zpW = fl.zp + 0.5, zpS = INFO.zp_sicher;
-  const zyklus = TL + N * TZ;
-  t = t % zyklus;
-  const z = { phi: 0, zp: zpS, hebel: 0, abstr: 0, tuer: 0, k: -1, tk: 0, schritt: null, korken: [], zaehler: 0 };
-  for (let i = 0; i < N; i++) z.korken.push("zu");
-  if (t < TL) {                                              // Beladen bei offener Haube
-    z.tuer = t < 0.8 ? lin(0, 70, t / 0.8) : t < TL - 0.8 ? 70 : lin(70, 0, (t - TL + 0.8) / 0.8);
-    z.schritt = ["S0", t < TL - 0.8 ? "Haube offen: Bediener setzt bis zu 8 Flaschen ein, Behälter geleert."
-                                    : "Haube geschlossen, Start: Referenzfahrt beendet, Ablauf beginnt."];
-    z.phi = DELTA * 0;
-    return z;
+// ---------------------------------------------------------------- Ablaufplan (wie die Steuerung)
+let PLAN = [], DAUER = 0, DUNKEL = null, LETZTE_ANZEIGE = 0;
+const DELTA = 3 / 150 * 180 / Math.PI;
+function planen() {
+  PLAN = []; let t = 0, phi = 0;
+  const tasche = Array(N).fill("zu"); tasche[4] = "leer";
+  const seg = (dur, typ, d) => { PLAN.push(Object.assign({ t0: t, dur, typ }, d)); t += dur; };
+  for (let z = 0; z < 6; z++) {
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < N; i++) if (tasche[i] === "zu") { const d = mod(phi + 45 * i, 360); if (d < bd) { bd = d; best = i; } }
+    if (best < 0) break;
+    const i = best, ziel = phi - bd;
+    seg(0.6, "warte", { text: ["Start", "Taste »Öffnen« (oder Alexa / Weboberfläche): die nächste verschlossene Flasche wird geholt."] });
+    seg(Math.max(0.5, bd / 60), "stern", { von: phi, bis: ziel + DELTA, text: ["S1", `Sternrad bringt Tasche ${i + 1} in die Vorposition (3 mm vor der Station).`] });
+    seg(0.8, "z", { von: "s", bis: "w", text: ["S2", "Kopf fährt ab, bis der Stempel den Kronkorken berührt (B3). B8 meldet Metall: Kronkorken vorhanden."] });
+    seg(0.3, "stern", { von: ziel + DELTA, bis: ziel, text: ["S3", "Letzte 3 mm: der Kronkorkenrand gleitet über die Hakenlippe."] });
+    seg(0.6, "hebel", { von: 0, bis: 15, i, text: ["S4", "Linearantrieb drückt den Hebel: der Haken hebelt ab, der Stempel ist Drehpunkt."] });
+    seg(0.4, "hebel", { von: 15, bis: 0, i, magnet: true, text: ["S5", "Hebel zurück (B10). Der Elektromagnet hält den Kronkorken."] });
+    seg(0.8, "z", { von: "w", bis: "s", i, text: ["S6", "Kopf fährt in die sichere Höhe."] });
+    seg(0.6, "schwenk", { von: 0, bis: INFO.schwenk_winkel, i, text: ["S7", "Servo schwenkt den Stempel über den festen Trichter."] });
+    seg(0.9, "fall", { i, text: ["S8", "Magnet aus: der Kronkorken fällt in den Trichter und rutscht in die Schublade (B11 zählt)."] });
+    seg(0.6, "schwenk", { von: INFO.schwenk_winkel, bis: 0, i, text: ["S9", "Stempel schwenkt zurück."] });
+    seg(1.6, "stern", { von: ziel, bis: ziel - 180, ausgabe: i, text: ["S10", "Die geöffnete Flasche fährt ins Bedienfach (180°)."] });
+    seg(1.0, "warte", { text: ["Bereit", "Licht im Fach leuchtet: »Flasche bereit«. Das Sternrad steht still."] });
+    seg(0.6, "klappe", { von: 0, bis: 100, text: ["Entnahme", "Bediener öffnet die Klappe – die Antriebe sind über -K1 stromlos."] });
+    seg(0.9, "raus", { i, text: ["Entnahme", "Geöffnete Flasche herausnehmen (B7 meldet Fach leer)."] });
+    seg(0.9, "rein", { i, text: ["Laden", "Volle Flasche in dieselbe Tasche stellen (B7 meldet Flasche)."] });
+    seg(0.6, "klappe", { von: 100, bis: 0, text: ["Laden", "Klappe schließen, Reset: das Magazin ist wieder voll."] });
+    phi = ziel - 180; tasche[i] = "zu";
   }
-  const tt = t - TL, k = Math.min(N - 1, Math.floor(tt / TZ)), tk = tt - k * TZ;
-  z.k = k; z.tk = tk;
-  for (let i = 0; i < k; i++) z.korken[i] = "weg";
-  z.zaehler = k;
-  const phiVor = -45 * k + DELTA, phiAlt = k === 0 ? 45 + DELTA : -45 * (k - 1);
-  const phiEnd = -45 * k;
-  // Sternrad
-  if (tk < 1.2) z.phi = lin(phiAlt, phiVor, tk / 1.2);
-  else if (tk < 2.0) z.phi = phiVor;
-  else z.phi = lin(phiVor, phiEnd, (tk - 2.0) / 0.3);
-  // Z-Achse
-  if (tk < 1.2) z.zp = zpS;
-  else if (tk < 2.0) z.zp = lin(zpS, zpW, (tk - 1.2) / 0.8);
-  else if (tk < 3.3) z.zp = zpW;
-  else z.zp = lin(zpW, zpS, (tk - 3.3) / 0.8);
-  // Hebel
-  if (tk >= 2.3 && tk < 2.9) z.hebel = lin(0, 15, (tk - 2.3) / 0.6);
-  else if (tk >= 2.9 && tk < 3.3) z.hebel = lin(15, 0, (tk - 2.9) / 0.4);
-  // Abstreifer
-  if (tk >= 4.1 && tk < 4.7) z.abstr = lin(0, 130, (tk - 4.1) / 0.6);
-  else if (tk >= 4.7 && tk < 5.3) z.abstr = lin(130, 0, (tk - 4.7) / 0.6);
-  // Kronkorken der aktuellen Flasche
-  z.korken[k] = tk < 2.3 ? "zu" : tk < 2.9 ? "hebel" : tk < 4.7 ? "magnet" : tk < 5.3 ? "flug" : "weg";
-  if (tk >= 5.3) z.zaehler = k + 1;
-  for (const s of SCHRITTE) if (tk >= s[0] && tk < s[1]) z.schritt = [s[2], s[3]];
+  DAUER = t;
+}
+function zustand(t) {
+  t = mod(t, DAUER);
+  const z = { phi: 0, zp: INFO.zp_sicher, hebel: 0, schwenk: 0, klappe: 0, tasche: Array(N).fill("zu"),
+              kork: Array(N).fill("zu"), flasche: Array(N).fill(0), fall: 0, zaehler: 0, text: ["", ""], bereit: false };
+  z.tasche[4] = "leer"; z.flasche[4] = 1;
+  const zpW = fl.zp + 0.5, zpS = INFO.zp_sicher;
+  for (const s of PLAN) {
+    if (t < s.t0) break;
+    const q = glatt(Math.min(1, (t - s.t0) / s.dur)), fertig = t >= s.t0 + s.dur;
+    z.text = s.text || z.text; z.bereit = false;
+    switch (s.typ) {
+      case "stern": z.phi = s.von + (s.bis - s.von) * q; if (s.ausgabe !== undefined && fertig) z.tasche[s.ausgabe] = "offen"; break;
+      case "z": { const a = s.von === "s" ? zpS : zpW, b = s.bis === "s" ? zpS : zpW; z.zp = a + (b - a) * q; break; }
+      case "hebel": z.hebel = s.von + (s.bis - s.von) * q; z.kork[s.i] = s.magnet ? "magnet" : "hebel"; break;
+      case "schwenk": z.schwenk = s.von + (s.bis - s.von) * q; break;
+      case "fall": z.kork[s.i] = fertig ? "weg" : "fall"; z.fall = q; if (fertig) z.zaehler++; break;
+      case "warte": z.bereit = s.text[0] === "Bereit"; break;
+      case "klappe": z.klappe = s.von + (s.bis - s.von) * q; break;
+      case "raus": z.flasche[s.i] = q; if (fertig) { z.tasche[s.i] = "leer"; z.flasche[s.i] = 1; } break;
+      case "rein": z.flasche[s.i] = 1 - q; z.kork[s.i] = "zu"; z.tasche[s.i] = fertig ? "zu" : "rein"; if (fertig) z.flasche[s.i] = 0; break;
+    }
+  }
   return z;
 }
 
-// ---------------------------------------------------------------- Geometrie
-function drehZ(x, y, grad) { const a = grad * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); return [x * c - y * s, x * s + y * c]; }
+// ---------------------------------------------------------------- Matrizen (spaltenweise, WebGL)
+const I4 = () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+function mul(a, b) { const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; }
+function verschieb(x, y, z) { const m = I4(); m[12] = x; m[13] = y; m[14] = z; return m; }
+function drehung(ax, ay, az_, grad, px = 0, py = 0, pz = 0) {
+  const a = grad * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), t = 1 - c;
+  const r = new Float32Array([t*ax*ax+c, t*ax*ay+s*az_, t*ax*az_-s*ay, 0,  t*ax*ay-s*az_, t*ay*ay+c, t*ay*az_+s*ax, 0,
+                              t*ax*az_+s*ay, t*ay*az_-s*ax, t*az_*az_+c, 0,  0, 0, 0, 1]);
+  return mul(verschieb(px, py, pz), mul(r, verschieb(-px, -py, -pz)));
+}
+function blick(e, z, u) {
+  const f = norm([z[0] - e[0], z[1] - e[1], z[2] - e[2]]), s = norm(kreuz(f, u)), w = kreuz(s, f);
+  return new Float32Array([s[0], w[0], -f[0], 0, s[1], w[1], -f[1], 0, s[2], w[2], -f[2], 0,
+    -(s[0]*e[0]+s[1]*e[1]+s[2]*e[2]), -(w[0]*e[0]+w[1]*e[1]+w[2]*e[2]), f[0]*e[0]+f[1]*e[1]+f[2]*e[2], 1]);
+}
+function perspektive(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2);
+  return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]); }
+const kreuz = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const norm = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
 
-let inst = [];       // Dreiecke der Flaschen (je Tasche Glas, Etikett, Kronkorken)
-function baueInstanzen() {
-  inst = [];
-  const n = netze[fi];
-  for (let i = 0; i < N; i++) {
-    for (const [art, f] of [["glas", n.glas], ["etikett", n.etikett], ["kronkorken", n.kork]])
-      for (let j = 0; j < f.length; j += 9) inst.push({ v: f.subarray(j, j + 9), w: new Float32Array(9), g: art, i, kork: art === "kronkorken" });
+// ---------------------------------------------------------------- WebGL
+const cv = document.getElementById("c");
+const gl = cv.getContext("webgl", { antialias: true });
+if (!gl) document.getElementById("fehler").textContent = "WebGL wird von diesem Browser nicht unterstützt.";
+const VS = `attribute vec3 p; attribute vec3 n; attribute vec4 c; uniform mat4 M, VP; varying vec4 vc; varying vec3 vn;
+  void main(){ vec4 w = M * vec4(p, 1.0); gl_Position = VP * w; vn = (M * vec4(n, 0.0)).xyz; vc = c; }`;
+const FS = `precision mediump float; varying vec4 vc; varying vec3 vn; uniform vec3 L; uniform float hell;
+  void main(){ vec3 nn = normalize(vn); float d = abs(dot(nn, L)); float k = 0.40 + 0.60 * d;
+    gl_FragColor = vec4(min(vc.rgb * k * hell, vec3(1.0)), vc.a); }`;
+function shader(typ, q) { const s = gl.createShader(typ); gl.shaderSource(s, q); gl.compileShader(s); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const A_P = gl.getAttribLocation(prog, "p"), A_N = gl.getAttribLocation(prog, "n"), A_C = gl.getAttribLocation(prog, "c");
+const U_M = gl.getUniformLocation(prog, "M"), U_VP = gl.getUniformLocation(prog, "VP"),
+      U_L = gl.getUniformLocation(prog, "L"), U_H = gl.getUniformLocation(prog, "hell");
+gl.enable(gl.DEPTH_TEST);
+
+function puffer(tris, farbe) {        // tris: Float32Array (n*9), farbe: [r,g,b,a] oder Array je Dreieck
+  const n = tris.length / 9, d = new Float32Array(n * 3 * 10);
+  for (let i = 0; i < n; i++) {
+    const o = i * 9, ux = tris[o+3]-tris[o], uy = tris[o+4]-tris[o+1], uz = tris[o+5]-tris[o+2],
+          vx = tris[o+6]-tris[o], vy = tris[o+7]-tris[o+1], vz = tris[o+8]-tris[o+2];
+    let nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const f = Array.isArray(farbe[0]) ? farbe[i] : farbe;
+    for (let k = 0; k < 3; k++) { const q = (i * 3 + k) * 10;
+      d[q] = tris[o+3*k]; d[q+1] = tris[o+3*k+1]; d[q+2] = tris[o+3*k+2]; d[q+3] = nx; d[q+4] = ny; d[q+5] = nz;
+      d[q+6] = f[0] / 255; d[q+7] = f[1] / 255; d[q+8] = f[2] / 255; d[q+9] = f[3]; }
   }
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW);
+  return { b, n: n * 3 };
+}
+// Gruppen nach Bewegungsklasse, Transparenz und LED
+const GRUPPEN = {};
+for (const p of DATEN) {
+  const f = FARBE[p.g] || [255, 0, 255, 1];
+  const key = (p.s === "mensch" ? "mensch" : p.k || "fest") + (f[3] < 1 ? "|t" : "") + (p.g === "led" ? "|led" : "");
+  (GRUPPEN[key] = GRUPPEN[key] || []).push({ tris: dek(p.d), f });
+}
+const GPU = {};
+for (const [key, teile] of Object.entries(GRUPPEN)) {
+  const n = teile.reduce((s, t) => s + t.tris.length, 0), tris = new Float32Array(n), farben = [];
+  let o = 0; for (const t of teile) { tris.set(t.tris, o); o += t.tris.length; for (let i = 0; i < t.tris.length / 9; i++) farben.push(t.f); }
+  GPU[key] = puffer(tris, farben);
+}
+let FL_GPU = null;
+function flaschenPuffer() {
+  const n = FLASCHEN[fi];
+  FL_GPU = { glas: puffer(dek(n.glas), FARBE.glas), etikett: puffer(dek(n.etikett), FARBE.etikett), kork: puffer(dek(n.kork), FARBE.kronkorken) };
+}
+function zeichneP(p, M, hell = 1) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, p.b);
+  gl.enableVertexAttribArray(A_P); gl.vertexAttribPointer(A_P, 3, gl.FLOAT, false, 40, 0);
+  gl.enableVertexAttribArray(A_N); gl.vertexAttribPointer(A_N, 3, gl.FLOAT, false, 40, 12);
+  gl.enableVertexAttribArray(A_C); gl.vertexAttribPointer(A_C, 4, gl.FLOAT, false, 40, 24);
+  gl.uniformMatrix4fv(U_M, false, M); gl.uniform1f(U_H, hell);
+  gl.drawArrays(gl.TRIANGLES, 0, p.n);
 }
 
-function stellung(z) {
-  const dzK = z.zp - INFO.zp_modell, zc = z.zp + T, px = INFO.px;
-  const a = z.hebel * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
-  const b = z.abstr * Math.PI / 180, cb = Math.cos(b), sb = Math.sin(b);
-  const [ax, ay] = INFO.abstreifer;
-  const zsb = INFO.schlauch_z[0] + T, zst = INFO.schlauch_z[1] + T;
-  const gt = z.tuer * Math.PI / 180, cg = Math.cos(gt), sg = Math.sin(gt);
-  const [hy, hz] = INFO.haube;
-  for (const t of statisch) {
-    const v = t.v, w = t.w, k = t.k;
-    for (let j = 0; j < 9; j += 3) {
-      let x = v[j], y = v[j + 1], zz = v[j + 2];
-      if (k === "st") { [x, y] = drehZ(x, y, z.phi); }
-      else if (k === "z" || k === "h" || k === "r" || k === "s") {
-        zz += dzK;
-        if (k === "h") { const dx = x - px, dz = zz - zc; x = px + ca * dx + sa * dz; zz = zc - sa * dx + ca * dz; }
-        if (k === "r") zz -= (INFO.aktor_x - px) * sa;
-        if (k === "s") { const dx = x - ax, dy = y - ay; x = ax + cb * dx - sb * dy; y = ay + sb * dx + cb * dy; }
-      } else if (k === "sl") {
-        const gew = Math.max(0, Math.min(1, (v[j + 2] - zsb) / (zst - zsb)));
-        zz += dzK * gew;
-      } else if (k === "d") {
-        const dy = y - hy, dz = zz - (hz + T); y = hy + cg * dy + sg * dz; zz = hz + T - sg * dy + cg * dz;
-      }
-      w[j] = x; w[j + 1] = y; w[j + 2] = zz;
-    }
+function matrizen(z) {
+  const dz = z.zp - INFO.zp_modell, zc = z.zp + T, px = INFO.px, [sx, sy] = INFO.schwenk;
+  const Mz = verschieb(0, 0, dz);
+  const Mh = mul(drehung(0, 1, 0, z.hebel, px, 0, zc), Mz);
+  const Ms = mul(drehung(0, 0, 1, z.schwenk, sx, sy, 0), Mz);
+  const Mr = verschieb(0, 0, dz - (INFO.aktor_x - px) * Math.sin(z.hebel * Math.PI / 180));
+  return { fest: I4(), mensch: I4(), st: drehung(0, 0, 1, z.phi), z: Mz, h: Mh, s: Ms, r: Mr,
+           k: drehung(0, 0, 1, -z.klappe, INFO.klappe_x, INFO.front_y, 0), d: I4(), zc };
+}
+
+function zeichne(z) {
+  const W = Math.round(cv.clientWidth * devicePixelRatio), H = Math.round(cv.clientHeight * devicePixelRatio);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; DUNKEL = null; }
+  gl.viewport(0, 0, W, H);
+  if (DUNKEL === null) DUNKEL = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() === "#10151d";
+  const dk = DUNKEL;
+  if (dk) gl.clearColor(0.063, 0.082, 0.114, 1); else gl.clearColor(0.933, 0.945, 0.961, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const nah = zoom > 1.8, ziel = nah ? [20, 150, T + 360] : [40, -60, 800];
+  const e = -el * Math.PI / 180, a = az * Math.PI / 180, R = 2700 / zoom;
+  const auge = [ziel[0] + R * Math.sin(a) * Math.cos(e), ziel[1] - R * Math.cos(a) * Math.cos(e), ziel[2] + R * Math.sin(e)];
+  const VP = mul(perspektive(0.55, W / H, 50, 8000), blick(auge, ziel, [0, 0, 1]));
+  gl.uniformMatrix4fv(U_VP, false, VP);
+  gl.uniform3fv(U_L, norm([-0.4, -0.65, 0.65]));
+  const Mx = matrizen(z);
+  const deck = (key) => { const kl = key.split("|")[0]; return Mx[kl] || I4(); };
+  gl.disable(gl.BLEND); gl.depthMask(true);
+  for (const [key, p] of Object.entries(GPU)) {
+    if (key.includes("|t")) continue;
+    if (key.startsWith("mensch") && !zeigeM) continue;
+    zeichneP(p, deck(key), key.includes("|led") && z.bereit ? 1.7 : 1);
   }
   // Flaschen und Kronkorken
-  const topZ = Z0T() + fl.H + 1.5, padZ = zc - 7;
-  const [tx, ty] = INFO.trichter, [bx, by, bz] = INFO.behaelter;
-  for (const t of inst) {
-    const v = t.v, w = t.w, i = t.i;
-    const st = t.kork ? z.korken[i] : "zu";
-    t.weg = st === "weg";
-    if (t.weg) continue;
-    const winkel = 90 + i * 45 + z.phi;
-    const cx = fl.r * Math.cos(winkel * Math.PI / 180), cy = fl.r * Math.sin(winkel * Math.PI / 180);
-    for (let j = 0; j < 9; j += 3) {
-      let x = v[j] + cx, y = v[j + 1] + cy, zz = v[j + 2];
-      if (st === "hebel") { const dx = x - px, dz = zz - zc; x = px + ca * dx + sa * dz; zz = zc - sa * dx + ca * dz; }
-      else if (st === "magnet") {
-        zz += padZ - topZ;
-        x = v[j]; y = v[j + 1] + INFO.ys;
-        const s = Math.max(0, Math.min(1, (z.abstr - 55) / 75));
-        x += (tx - 0) * s; y += (ty - INFO.ys) * s;
-      } else if (st === "flug") {
-        const s = glatt((z.tk - 4.7) / 0.6);
-        const sx = tx + (bx - tx) * s, sy = ty + (by - ty) * s;
-        const sz = (zc - 30) + ((bz + T) - (zc - 30)) * s;
-        x = v[j] + sx; y = v[j + 1] + sy; zz = zz - topZ + sz;
-      }
-      w[j] = x; w[j + 1] = y; w[j + 2] = zz;
+  const kTop = 94 + T + fl.H + 1.5, pad = Mx.zc + INFO.c_offset + 0.5;
+  const [tx, ty, tz] = INFO.trichter, [r0, r1] = INFO.rinne, [bx, by, bz] = INFO.schublade;
+  const pfad = [[tx, ty, tz + T + 2], [r0[0], r0[1], r0[2] + T + 8], [r1[0], r1[1], r1[2] + T + 8], [bx, by, bz + T]];
+  for (let i = 0; i < N; i++) {
+    if (z.tasche[i] === "leer" && z.flasche[i] >= 1) continue;
+    const w = (90 + i * 45 + z.phi) * Math.PI / 180;
+    const cx = fl.r * Math.cos(w), cy = fl.r * Math.sin(w) - 160 * z.flasche[i];
+    const Mb = verschieb(cx, cy, 0);
+    zeichneP(FL_GPU.glas, Mb); zeichneP(FL_GPU.etikett, Mb);
+    const st = z.kork[i];
+    let Mk = Mb;
+    if (st === "weg") continue;
+    if (st === "hebel") Mk = mul(drehung(0, 1, 0, z.hebel, INFO.px, 0, Mx.zc), Mb);
+    else if (st === "magnet") Mk = mul(drehung(0, 0, 1, z.schwenk, INFO.schwenk[0], INFO.schwenk[1], 0), verschieb(0, INFO.ys, pad - kTop));
+    else if (st === "fall") {
+      const s = z.fall * 3, k = Math.min(2, Math.floor(s)), f = s - k, A = pfad[k], B = pfad[k + 1];
+      Mk = verschieb(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f - kTop + 6);
     }
+    zeichneP(FL_GPU.kork, Mk);
   }
-}
-function Z0T() { return 94 + T; }
-
-// ---------------------------------------------------------------- Zeichnen
-function zeichne(z) {
-  const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
-  const dk = dunkel();
-  g.fillStyle = dk ? "#10151d" : "#eef1f5"; g.fillRect(0, 0, W, H);
-  const a = az * Math.PI / 180, e = el * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), ce = Math.cos(e), se = Math.sin(e);
-  const nah = zoom > 1.8;
-  const cxw = nah ? 60 : 50, cyw = nah ? 150 : -120, czw = nah ? T + 330 : 820;
-  const s = Math.min(W, H) / 2100 * zoom, cx = W / 2 + (W > 900 ? 130 * devicePixelRatio : 0), cy = H / 2;
-  const P = (x, y, zz) => {
-    x -= cxw; y -= cyw; zz -= czw;
-    const x1 = x * ca - y * sa, y1 = x * sa + y * ca;
-    return [cx + x1 * s, cy - (zz * ce - y1 * se) * s, y1 * ce + zz * se];
-  };
-  g.lineWidth = 1; g.strokeStyle = dk ? "rgba(140,170,210,0.12)" : "rgba(40,60,90,0.10)";
-  for (let i = -1000; i <= 900; i += 100) { const p = P(-700, i, 0), q = P(1100, i, 0); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); }
-  for (let i = -700; i <= 1100; i += 100) { const p = P(i, -1000, 0), q = P(i, 900, 0); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); }
-  const liste = [];
-  const alle = statisch.concat(inst);
-  for (const t of alle) {
-    if (t.weg) continue;
-    if (!zeigeM && t.s === "mensch") continue;
-    if (!zeigeH && t.g === "haube") continue;
-    const w = t.w;
-    const ux = w[3] - w[0], uy = w[4] - w[1], uz = w[5] - w[2], vx = w[6] - w[0], vy = w[7] - w[1], vz = w[8] - w[2];
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
-    const ny1 = nx * sa + ny * ca;
-    if (ny1 * ce + nz * se >= 0) continue;
-    if (t.g === "tischplatte" && Math.abs(nz) < 0.9) continue;
-    const p0 = P(w[0], w[1], w[2]), p1 = P(w[3], w[4], w[5]), p2 = P(w[6], w[7], w[8]);
-    const f = FARBE[t.g] || [255, 0, 255];
-    const d = Math.max(0, nx * L[0] + ny * L[1] + nz * L[2]);
-    const k = 0.38 + 0.62 * d, sp = (t.g === "glas" || t.g === "kronkorken") ? Math.pow(d, 20) * 120 : 0;
-    const col = `rgb(${Math.min(255, f[0] * k + sp) | 0},${Math.min(255, f[1] * k + sp) | 0},${Math.min(255, f[2] * k + sp) | 0})`;
-    liste.push([p0[2] + p1[2] + p2[2], p0, p1, p2, col, t.g === "haube"]);
+  // Transparente Teile (Haube, Klappe) zuletzt
+  if (zeigeH) {
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    for (const [key, p] of Object.entries(GPU)) if (key.includes("|t")) zeichneP(p, deck(key));
+    gl.depthMask(true);
   }
-  liste.sort((A, B) => B[0] - A[0]);
-  g.lineWidth = 0.6;
-  for (const [, p0, p1, p2, col, glas] of liste) {
-    g.globalAlpha = glas ? 0.16 : 1;
-    g.fillStyle = col; g.strokeStyle = col;
-    g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.closePath(); g.fill();
-    if (!glas) g.stroke();
-  }
-  g.globalAlpha = 1;
 }
 
 function anzeige(z) {
-  document.getElementById("schritt").innerHTML = z.schritt ? `<b>${z.schritt[0]}</b> ${z.schritt[1]}` : "";
-  const an = (b, t) => `<span class="${b ? "an" : ""}">${b ? "●" : "○"} ${t}</span>`;
-  const kontakt = z.k >= 0 && z.tk >= 1.95 && z.tk < 3.3;
+  document.getElementById("schritt").innerHTML = `<b>${z.text[0]}</b> ${z.text[1]}`;
+  const pos = i => { const w = mod(90 + i * 45 + z.phi, 360); return Math.abs(w - 90) < 3 ? "S" : Math.abs(w - 270) < 3 ? "F" : ""; };
+  document.getElementById("taschen").innerHTML = z.tasche.map((s, i) =>
+    `<span class="${s === "offen" ? "offen" : s === "leer" ? "leer" : "zu"}">${i + 1}${pos(i) ? " " + pos(i) : ""}<br>${s === "offen" ? "offen" : s === "leer" ? "leer" : "voll"}</span>`).join("");
   document.getElementById("tab").innerHTML = `
-    <tr><td>Flasche</td><td>${z.k >= 0 ? (z.k + 1) + " / " + N : "–"}</td></tr>
-    <tr><td>Kronkorken im Behälter</td><td>${z.zaehler}</td></tr>
-    <tr><td>Drehachse (Kopf)</td><td>${z.zp.toFixed(1)} mm ü. Tisch</td></tr>
-    <tr><td>Hebel / Abstreifer</td><td>${z.hebel.toFixed(0)}° / ${z.abstr.toFixed(0)}°</td></tr>
-    <tr><td colspan="2">${an(z.tuer < 1, "Haube zu")} &nbsp; ${an(kontakt, "Stempelkontakt")}<br>
-      ${an(z.k >= 0 && z.tk >= 2.3 && z.korken[z.k] !== "zu", "Flasche in Station")} &nbsp;
-      ${an(z.k >= 0 && z.tk >= 4.7 && z.tk < 5.3, "Kronkorken im Schlauch")}</td></tr>`;
+    <tr><td>Kronkorken in der Schublade</td><td>${z.zaehler}</td></tr>
+    <tr><td>Drehachse Kopf</td><td>${z.zp.toFixed(1)} mm ü. Tisch</td></tr>
+    <tr><td>Hebel / Schwenkarm / Klappe</td><td>${z.hebel.toFixed(0)}° / ${z.schwenk.toFixed(0)}° / ${z.klappe.toFixed(0)}°</td></tr>
+    <tr><td>Geländer-Radius (Skala)</td><td>${(fl.r + fl.D / 2 + 0.5).toFixed(1)} mm</td></tr>`;
 }
 
 // ---------------------------------------------------------------- Bedienung
 const sel = document.getElementById("fl");
 FLASCHEN.forEach((f, i) => sel.add(new Option(`${f.name}  (${f.H} mm, Ø ${f.D})`, i)));
-sel.onchange = () => { fi = +sel.value; fl = FLASCHEN[fi]; baueInstanzen(); };
+sel.onchange = () => { fi = +sel.value; fl = FLASCHEN[fi]; flaschenPuffer(); planen(); };
 document.getElementById("tempo").oninput = e => tempo = +e.target.value;
 document.getElementById("play").onclick = e => { laeuft = !laeuft; e.target.textContent = laeuft ? "⏸ Pause" : "▶ Weiter"; };
 document.getElementById("pm").onclick = e => { zeigeM = !zeigeM; e.target.textContent = zeigeM ? "Mensch aus" : "Mensch an"; };
@@ -283,18 +292,16 @@ cv.addEventListener("pointermove", e => {
   if (pins.has(e.pointerId)) pins.set(e.pointerId, [e.clientX, e.clientY]);
   if (pins.size === 2) { const [p, q] = [...pins.values()], d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (pinchD) zoom *= d / pinchD; pinchD = d; return; }
   if (!zieh) return;
-  az += (e.clientX - zieh[0]) * 0.4; el = Math.max(-89, Math.min(60, el + (e.clientY - zieh[1]) * 0.4));
-  zieh = [e.clientX, e.clientY];
+  az += (e.clientX - zieh[0]) * 0.4; el = Math.max(-89, Math.min(60, el + (e.clientY - zieh[1]) * 0.4)); zieh = [e.clientX, e.clientY];
 });
 cv.addEventListener("wheel", e => { e.preventDefault(); zoom *= e.deltaY < 0 ? 1.1 : 0.9; }, { passive: false });
-
-baueInstanzen();
+flaschenPuffer(); planen();
 let letzte = performance.now();
 function schleife(jetzt) {
   const dt = Math.min(0.1, (jetzt - letzte) / 1000); letzte = jetzt;
   if (laeuft) zeit += dt * tempo;
-  const z = zustand(zeit);
-  stellung(z); zeichne(z); anzeige(z);
+  const z = zustand(zeit); zeichne(z);
+  if (jetzt - LETZTE_ANZEIGE > 120) { anzeige(z); LETZTE_ANZEIGE = jetzt; }
   requestAnimationFrame(schleife);
 }
 requestAnimationFrame(schleife);

@@ -1,79 +1,68 @@
 // ============================================================================
-//  Flaschenöffner Automatik TFO-A – Konfiguration
+//  Flaschenöffner-Automat TFO-A (Index B) – Konfiguration
 //  Alle anlagenspezifischen Werte stehen hier. Maße in mm, Zeiten in ms.
 // ============================================================================
 #pragma once
 
-// ---------------------------------------------------------------- Eingänge
-// 24-V-Signale über Optokoppler-Platine (aktiv = HIGH am ESP32).
-// GPIO 34/35/36/39 sind reine Eingänge ohne internen Pull-up: Pull-ups sitzen
-// auf der Optokoppler-Platine.
-constexpr int PIN_START          = 34;  // E1  Taster Start (Schließer)
-constexpr int PIN_STOP           = 35;  // E2  Taster Stopp (Öffner -> aktiv = nicht gedrückt)
-constexpr int PIN_RESET          = 36;  // E3  Taster Reset / Quittieren
-constexpr int PIN_SICHERHEIT_OK  = 39;  // E4  Rückmeldung Sicherheitsrelais (Haube zu, Not-Halt frei)
-constexpr int PIN_Z_REFERENZ     = 32;  // E5  Induktiv M8, Z-Achse oben
-constexpr int PIN_STEMPEL        = 33;  // E6  Induktiv M8, Magnetstempel berührt Kronkorken
-constexpr int PIN_STERN_REFERENZ = 25;  // E7  Induktiv M12, Referenzfahne Sternrad
-constexpr int PIN_FLASCHE_DA     = 26;  // E8  Reflexlichttaster M18, Flasche in Station
-constexpr int PIN_KORKEN_ZAEHLER = 27;  // E9  Gabellichtschranke im Trichter
-constexpr int PIN_BEHAELTER_VOLL = 14;  // E10 Einweglichtschranke (aktiv = unterbrochen = voll)
-constexpr int PIN_HEBEL_GRUND    = 13;  // E11 Induktiv M8, Hebel in Grundstellung
+// ---------------------------------------------------------------- Eingänge über MCP23017 (I2C 0x20)
+// 24-V-Signale über Optokoppler-Platine auf den MCP23017, Bit = 1 bedeutet "aktiv".
+constexpr uint8_t MCP_ADRESSE = 0x20;
+constexpr int PIN_SDA = 21, PIN_SCL = 22;
+enum Eingang : uint8_t {
+  E_OEFFNEN = 0,       // -S1 Leuchttaster "Öffnen" (Schließer)
+  E_LADEN,             // -S2 Leuchttaster "Laden" (Schließer)
+  E_STOPP,             // -S3 Stopp (Öffner -> 1 = nicht gedrückt)
+  E_RESET,             // -S4 Reset / Quittieren
+  E_SICHER_OK,         // -K1/-K2 Hilfsschließer in Reihe (Not-Halt, Klappe, Deckel in Ordnung)
+  E_Z_REF,             // -B2 Z-Achse oben
+  E_STEMPEL,           // -B3 Stempel berührt Kronkorken
+  E_KRONKORKEN,        // -B8 induktiv im Stempel: Metall = Kronkorken vorhanden
+  E_STERN_REF,         // -B4 Referenzfahne Sternrad (Tasche 1 in der Station)
+  E_FLASCHE_STATION,   // -B6 Reflexlichttaster Station
+  E_FLASCHE_FACH,      // -B7 Reflexlichttaster Bedienfach
+  E_HEBEL_GRUND,       // -B10 Hebel in Grundstellung
+  E_KK_RUTSCHE,        // -B11 Gabellichtschranke Rutsche (Impuls je Kronkorken)
+  E_SCHUBLADE_VOLL,    // -B12 Einweglichtschranke unterbrochen
+  E_SCHUBLADE_DA,      // -B13 Reedkontakt Schublade eingesetzt
+  E_KLAPPE_ZU,         // -B1a Meldekontakt Bedienklappe geschlossen
+  ANZAHL_EINGAENGE
+};
 
-// ---------------------------------------------------------------- Ausgänge
-constexpr int PIN_Z_STEP      = 16;     // A1  TMC2209 Z-Achse
-constexpr int PIN_Z_DIR       = 17;
-constexpr int PIN_STERN_STEP  = 18;     // A2  TMC2209 Sternrad
-constexpr int PIN_STERN_DIR   = 19;
-constexpr int PIN_TREIBER_EN  = 21;     // A3  Enable beider Treiber (LOW = aktiv)
-constexpr int PIN_AKTOR_A     = 22;     // A4  H-Brücke Linearantrieb, Eingang A
-constexpr int PIN_AKTOR_B     = 23;     // A5  H-Brücke Linearantrieb, Eingang B
-constexpr int PIN_SERVO       = 15;     // A6  Servo-Abstreifer (PWM 50 Hz)
-constexpr int PIN_LAMPE_GRUEN = 4;      // A7  Signalsäule grün  (über Relais/Transistor 24 V)
-constexpr int PIN_LAMPE_GELB  = 5;      // A8  Signalsäule gelb
-constexpr int PIN_LAMPE_ROT   = 2;      // A9  Signalsäule rot
-constexpr int PIN_START_LED   = 12;     // A10 Leuchtmelder im Starttaster (nach dem Booten schalten)
+// ---------------------------------------------------------------- Ausgänge direkt am ESP32
+constexpr int PIN_Z_STEP = 16, PIN_Z_DIR = 17;          // -A3 TMC2209 Z-Achse
+constexpr int PIN_S_STEP = 18, PIN_S_DIR = 19;          // -A4 TMC2209 Sternrad
+constexpr int PIN_TREIBER_EN = 23;                      // LOW = Treiber aktiv
+constexpr int PIN_AKTOR_A = 25, PIN_AKTOR_B = 26;       // -A5 H-Brücke Linearantrieb -M3
+constexpr int PIN_SERVO = 27;                           // -M4 Servo Schwenkarm (PWM 50 Hz)
+constexpr int PIN_MAGNET = 32;                          // -Y2 Elektro-Haftmagnet (MOSFET)
+constexpr int PIN_FACHLICHT = 33;                       // LED-Leiste Bedienfach (MOSFET)
+constexpr int PIN_GRUEN = 4, PIN_GELB = 5, PIN_ROT = 2; // -P1 Signalsäule über -A6 (GPIO 2/5 = Strapping-Pins)
+constexpr int PIN_LED_OEFFNEN = 13, PIN_LED_LADEN = 14; // Leuchtmelder in -S1 / -S2
 
 // ---------------------------------------------------------------- Mechanik
-// Z-Achse: Schrittmotor 200 Schritte/U, 1/8 Mikroschritt, Trapezspindel TR8x2
-constexpr float Z_SCHRITTE_PRO_MM   = 200.0f * 8.0f / 2.0f;     // 800
-// Sternrad: 200 Schritte/U, 1/8, Zahnriemen 20 -> 100 Zähne (5:1)
-constexpr long  STERN_SCHRITTE_U    = 200L * 8L * 5L;           // 8000
-constexpr int   TASCHEN             = 8;
-constexpr long  STERN_TAKT          = STERN_SCHRITTE_U / TASCHEN; // 1000 = 45°
-constexpr float STERN_RADIUS        = 150.0f;                   // Teilkreis Flaschenmitte
-constexpr float FEIN_MM             = 3.0f;                     // Feinpositionierung
-constexpr long  STERN_FEIN          = (long)(FEIN_MM / (2.0f * 3.14159265f * STERN_RADIUS)
-                                             * STERN_SCHRITTE_U + 0.5f);   // ca. 25
+constexpr float Z_SCHRITTE_PRO_MM = 200.0f * 8.0f / 2.0f;     // TR8x2, 1/8 Schritt: 800
+constexpr long  STERN_SCHRITTE_U  = 200L * 8L * 5L;           // 1/8 Schritt, Riemen 5:1: 8000
+constexpr int   TASCHEN           = 8;
+constexpr long  STERN_TAKT        = STERN_SCHRITTE_U / TASCHEN; // 1000 = 45°
+constexpr int   FACH_ABSTAND      = 4;                          // Bedienfach 4 Taschen nach der Station
+constexpr float STERN_RADIUS      = 150.0f;
+constexpr long  STERN_FEIN        = (long)(3.0f / (2.0f * 3.14159265f * STERN_RADIUS) * STERN_SCHRITTE_U + 0.5f);
 
-// Z-Positionen als Höhe der Hebel-Drehachse über Tisch (Modellmaße TFO-A)
-constexpr float Z_REFERENZ_MM   = 430.0f;   // Lage des Referenzschalters
-constexpr float Z_SICHER_MM     = 395.0f;   // Hakenlippe über allen Kronkorken, Abstreifhöhe
-constexpr float Z_MIN_MM        = 268.0f;   // tiefster Punkt (Euro 0,25 l: 274,5 minus Reserve)
-constexpr float Z_ANHEBEN_MM    = 0.5f;     // nach Stempelkontakt wieder anheben
+// Z-Positionen als Höhe der Hebel-Drehachse über Tisch (Maße aus modell_a.py)
+constexpr float Z_REFERENZ_MM = 455.0f;
+constexpr float Z_SICHER_MM   = 400.0f;   // Takten, Schwenken, Abwurf
+constexpr float Z_MIN_MM      = 251.0f;   // unter Euro 0,25 l (257,5) -> darunter: kein Kronkorken
+constexpr float Z_ANHEBEN_MM  = 0.5f;
+constexpr float Z_VORLAUF_MM  = 15.0f;    // Eilgang bis 15 mm über die zuletzt ertastete Höhe
 
-// Geschwindigkeiten (Schritte/s) und Beschleunigungen (Schritte/s²)
-constexpr uint32_t Z_FAHRT_HZ      = 16000;  // 20 mm/s
-constexpr uint32_t Z_ANTAST_HZ     = 2400;   //  3 mm/s
-constexpr uint32_t Z_BESCHL        = 40000;
-constexpr uint32_t STERN_HZ        = 6000;
-constexpr uint32_t STERN_FEIN_HZ   = 800;
-constexpr uint32_t STERN_BESCHL    = 12000;
+constexpr uint32_t Z_FAHRT_HZ   = 16000, Z_ANTAST_HZ = 8000, Z_BESCHL = 40000;   // Antasten 10 mm/s (Stempelfeder 5 mm)
+constexpr uint32_t STERN_HZ     = 6000,  STERN_FEIN_HZ = 800, STERN_BESCHL = 12000;
 
-// Linearantrieb (24 V, Hub 50, interne Endschalter)
-constexpr uint32_t T_HEBELN        = 1400;   // Zeit für Abhebeln (Antrieb fährt ein)
-constexpr uint32_t T_HEBEL_ZURUECK = 2500;   // Zeitgrenze bis "Hebel Grundstellung"
+constexpr uint32_t T_HEBELN        = 1400;   // Linearantrieb fährt aus (Hebel drücken)
+constexpr uint32_t T_HEBEL_ZURUECK = 2500;
+constexpr int      SERVO_GRUND_GRAD = 0, SERVO_TRICHTER_GRAD = 90;
+constexpr uint32_t T_SCHWENK       = 700;
+constexpr uint32_t T_ABWURF        = 1500;   // Kronkorken muss B11 passieren
+constexpr uint32_t T_MAX_REFERENZ  = 30000, T_MAX_FAHRT = 15000, T_ENTPRELL = 20;
 
-// Servo-Abstreifer
-constexpr int      SERVO_GRUND_GRAD   = 0;
-constexpr int      SERVO_ABSTREIF_GRAD = 130;
-constexpr uint32_t T_SERVO            = 600;
-
-// Zeitgrenzen (Störung, wenn überschritten)
-constexpr uint32_t T_MAX_REFERENZ   = 30000;
-constexpr uint32_t T_MAX_FAHRT      = 15000;
-constexpr uint32_t T_MAX_KORKEN     = 1500;   // Kronkorken muss den Trichter passieren
-constexpr uint32_t T_ENTPRELL       = 20;
-
-// ---------------------------------------------------------------- Funktionen
-#define ALEXA_AKTIV 0     // 1 = Start per Alexa über Sinric Pro (Zugangsdaten in zugang.h)
+#define ALEXA_AKTIV 0     // 1 = "Öffnen" per Alexa über Sinric Pro (Zugangsdaten in zugang.h)
