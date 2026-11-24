@@ -10,6 +10,7 @@ gebaut fast nur aus Normteilen.
 |---|---|---|---|
 | [`1_Handgeraet_TFO/`](1_Handgeraet_TFO/) | **Handgerät TFO**: manueller Tisch-Flaschenöffner, Flasche wird eingespannt, Hebel mit Kugelknopf | fertig konstruiert, Zeichnungssatz (PDF, 16 Seiten) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/1_Handgeraet_TFO/vorschau.html) |
 | [`2_Automat_TFO-A/`](2_Automat_TFO-A/) | **Automat TFO-A, Index B** (aktuell): Ausgabeautomat mit Magazin für 8 Flaschen, Bedienfach, Kronkorken-Schublade, ESP32 | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html) |
+| [`3_Automat_TFO-A_Index_C/`](3_Automat_TFO-A_Index_C/) | **Automat TFO-A, Index C** (neueste Revision): Greifkopf öffnet von oben (Backen greifen, Schwinge kippt), Flaschen bis Ø 100 mm / 350 mm, Fangrinne statt Magnet | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/3_Automat_TFO-A_Index_C/vorschau_automatik.html) |
 | [`2_Automat_TFO-A/archiv_Index_A/`](2_Automat_TFO-A/archiv_Index_A/) | **Automat TFO-A, Index A**: erster Automatik-Entwurf im Chargenbetrieb | **verworfen**, nicht bauen (32 Kollisionen, 9 Logikfehler) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/archiv_Index_A/vorschau_automatik.html) |
 | [`gemeinsam/`](gemeinsam/) | Werkzeuge: Generator des Handgeräts, Zeichnungs- und PDF-Funktionen, Flaschenmaße | wird von 1 und 2 benutzt | – |
 
@@ -29,6 +30,9 @@ die überarbeitete Fassung. Warum Index A verworfen wurde, steht im
 3. **Automat TFO-A Index B:** neu aufgebaut als Ausgabeautomat. Befüllen und Entnehmen
    über ein verriegeltes Fach, Öffnen auf Knopfdruck oder per Alexa, Kronkorken in eine
    Schublade. Jede Bewegungsstellung ist auf Kollisionen gerechnet.
+4. **Automat TFO-A Index C:** Öffnen von oben ohne langen Hebel. Ein Greifkopf greift den
+   Kronkorken mit zwei Backen und kippt ihn ab, wie ein Handöffner mit Drehpunkt auf dem
+   Kronkorken. Sternrad und Geländer für Flaschen bis Ø 100 mm und 350 mm Höhe.
 
 Feste Stände lassen sich auch über Git-Tags abrufen:
 `TFO-1.0` (Handgerät), `TFO-A-Index-A` und `TFO-A-Index-B`.
@@ -44,6 +48,10 @@ python 2_Automat_TFO-A/pruefe_kollisionen.py
 python 2_Automat_TFO-A/erzeuge_step.py
 python 2_Automat_TFO-A/erzeuge_automatik.py
 python 2_Automat_TFO-A/doku_automatik.py
+python 3_Automat_TFO-A_Index_C/pruefe_kollisionen.py
+python 3_Automat_TFO-A_Index_C/erzeuge_step.py
+python 3_Automat_TFO-A_Index_C/erzeuge_automatik.py
+python 3_Automat_TFO-A_Index_C/doku_automatik.py
 ```
 
 ## Alte Links
