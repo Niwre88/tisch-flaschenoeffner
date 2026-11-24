@@ -1,6 +1,11 @@
-# 2 · Flaschenöffner-Automat TFO-A (Index B, aktueller Stand)
+# 2 · Flaschenöffner-Automat TFO-A (Index B, Vorgänger)
 
 **Status: Entwurf. Kollisionsprüfung 0 Befunde, Firmware ungetestet.**
+
+> **Abgelöst durch [Index C](../3_Automat_TFO-A_Index_C/):** Greifkopf öffnet von oben statt
+> mit dem langen Hebel, Flaschen bis Ø 100 mm und 350 mm Höhe. Index B bleibt unverändert
+> als Hebel-Variante erhalten.
+
 Zur Übersicht aller Stände: [zurück zur Hauptseite](../README.md) ·
 **3D-Vorschau:** [niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html)
 

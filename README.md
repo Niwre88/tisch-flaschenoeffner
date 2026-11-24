@@ -9,15 +9,16 @@ gebaut fast nur aus Normteilen.
 | Ordner | Was | Status | 3D-Vorschau |
 |---|---|---|---|
 | [`1_Handgeraet_TFO/`](1_Handgeraet_TFO/) | **Handgerät TFO**: manueller Tisch-Flaschenöffner, Flasche wird eingespannt, Hebel mit Kugelknopf | fertig konstruiert, Zeichnungssatz (PDF, 16 Seiten) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/1_Handgeraet_TFO/vorschau.html) |
-| [`2_Automat_TFO-A/`](2_Automat_TFO-A/) | **Automat TFO-A, Index B** (aktuell): Ausgabeautomat mit Magazin für 8 Flaschen, Bedienfach, Kronkorken-Schublade, ESP32 | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html) |
-| [`3_Automat_TFO-A_Index_C/`](3_Automat_TFO-A_Index_C/) | **Automat TFO-A, Index C** (neueste Revision): Greifkopf öffnet von oben (Backen greifen, Schwinge kippt), Flaschen bis Ø 100 mm / 350 mm, Fangrinne statt Magnet | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/3_Automat_TFO-A_Index_C/vorschau_automatik.html) |
+| [`3_Automat_TFO-A_Index_C/`](3_Automat_TFO-A_Index_C/) | **Automat TFO-A, Index C** (aktuell): Greifkopf öffnet von oben (Backen greifen, Schwinge kippt), Flaschen bis Ø 100 mm / 350 mm, Fangrinne statt Magnet | Entwurf, Kollisionsprüfung 0 Befunde, Firmware ungetestet | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/3_Automat_TFO-A_Index_C/vorschau_automatik.html) |
+| [`2_Automat_TFO-A/`](2_Automat_TFO-A/) | **Automat TFO-A, Index B** (Vorgänger): Ausgabeautomat mit langem Hebel und Linearantrieb, Flaschen bis Ø 79 mm / 270 mm | Entwurf, durch Index C abgelöst, bleibt als Hebel-Variante erhalten | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/vorschau_automatik.html) |
 | [`2_Automat_TFO-A/archiv_Index_A/`](2_Automat_TFO-A/archiv_Index_A/) | **Automat TFO-A, Index A**: erster Automatik-Entwurf im Chargenbetrieb | **verworfen**, nicht bauen (32 Kollisionen, 9 Logikfehler) | [öffnen](https://niwre88.github.io/tisch-flaschenoeffner/2_Automat_TFO-A/archiv_Index_A/vorschau_automatik.html) |
-| [`gemeinsam/`](gemeinsam/) | Werkzeuge: Generator des Handgeräts, Zeichnungs- und PDF-Funktionen, Flaschenmaße | wird von 1 und 2 benutzt | – |
+| [`gemeinsam/`](gemeinsam/) | Werkzeuge: Generator des Handgeräts, Zeichnungs- und PDF-Funktionen, Flaschenmaße | wird von allen Ständen benutzt | – |
 
 **Was heißt „Index“?** Wie bei Zeichnungen in der Fertigung kennzeichnet der Index den
-Änderungsstand eines Produkts. TFO-A ist der Automat, Index A sein erster Stand, Index B
-die überarbeitete Fassung. Warum Index A verworfen wurde, steht im
-[Prüfbericht](2_Automat_TFO-A/PRUEFBERICHT.md).
+Änderungsstand eines Produkts. TFO-A ist der Automat: Index A sein erster Stand (verworfen),
+Index B die überarbeitete Fassung mit Hebel, Index C die aktuelle Fassung mit Greifkopf.
+Warum Index A verworfen wurde, steht im [Prüfbericht von Index B](2_Automat_TFO-A/PRUEFBERICHT.md),
+die Prüfung von Index C im [Prüfbericht von Index C](3_Automat_TFO-A_Index_C/PRUEFBERICHT.md).
 
 ## Entwicklung
 
@@ -35,7 +36,7 @@ die überarbeitete Fassung. Warum Index A verworfen wurde, steht im
    Kronkorken. Sternrad und Geländer für Flaschen bis Ø 100 mm und 350 mm Höhe.
 
 Feste Stände lassen sich auch über Git-Tags abrufen:
-`TFO-1.0` (Handgerät), `TFO-A-Index-A` und `TFO-A-Index-B`.
+`TFO-1.0` (Handgerät), `TFO-A-Index-A`, `TFO-A-Index-B` und `TFO-A-Index-C`.
 
 ## Alles neu erzeugen
 
