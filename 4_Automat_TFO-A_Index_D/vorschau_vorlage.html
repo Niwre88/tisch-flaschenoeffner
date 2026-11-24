@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flaschenöffner-Automat Index D</title>
+<style>
+  :root { --bg:#eef1f5; --panel:#ffffffe8; --text:#1d2633; --dim:#5d6b7d; --acc:#1f6fd1; --line:#cfd7e2; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; } }
+  :root[data-theme="dark"] { --bg:#10151d; --panel:#18202bea; --text:#dbe5f1; --dim:#8c9bb0; --acc:#5aa2ff; --line:#2b3a4e; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:13px/1.45 "Segoe UI", system-ui, sans-serif; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; cursor:grab; touch-action:none; }
+  #ui { position:fixed; left:12px; top:12px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; width:330px; max-height:calc(100vh - 48px); overflow:auto; }
+  .dim { color:var(--dim); font-size:12px; }
+  button, select { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px; margin:2px 2px 2px 0; cursor:pointer; font:inherit; }
+  select { width:100%; margin-top:2px; }
+  button:hover, select:hover { border-color:var(--acc); }
+  label { display:block; margin-top:8px; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  #schritt { margin-top:8px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); min-height:38px; }
+  #schritt b { color:var(--acc); }
+  #mover { display:flex; gap:4px; margin-top:6px; }
+  #mover span { flex:1; text-align:center; border:1px solid var(--line); border-radius:5px; padding:2px 0; font-size:11px; }
+  .zu { background:#d9a72a33; } .offen { background:#2a8a4a33; } .leer { opacity:.5; }
+  table { border-collapse:collapse; margin-top:6px; width:100%; font-size:12px; }
+  td { padding:1px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  #fehler { color:#c33; margin-top:6px; }
+  canvas.pan { cursor:move; } canvas.dreh { cursor:grabbing; }
+  #kopf { display:flex; align-items:center; gap:8px; }
+  #kopf h1 { flex:1; margin:0; font-size:15px; }
+  #zu { margin:0; padding:2px 9px; font-size:14px; line-height:1.2; }
+  #ui.klein { width:auto; }
+  #ui.klein #inhalt { display:none; }
+  kbd { border:1px solid var(--line); border-radius:4px; padding:0 4px; font:11px/1.5 inherit; }
+  #hilfe { margin:4px 0 6px; line-height:1.6; }
+  @media (max-width:600px) { #ui { width:calc(100vw - 48px); max-height:45vh; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="kopf"><h1>Flaschenöffner-Automat TFO-A · Index D</h1>
+    <button id="zu" title="Bedienfeld ein-/ausklappen">–</button></div>
+  <div id="inhalt">
+  <div id="hilfe" class="dim">
+    Links ziehen: drehen<br>
+    Mitte oder rechts ziehen (oder <kbd>Shift</kbd> + links): verschieben<br>
+    Mausrad: zoomen zur Mausposition · Doppelklick: Ansicht zurücksetzen<br>
+    Touch: 1 Finger drehen, 2 Finger verschieben und zoomen
+  </div>
+  <div>
+    <button data-v="25,-28,0.9">Schräg</button><button data-v="0,-12,0.95">Bediener</button>
+    <button data-v="0,-89,1.0">Oben</button><button data-v="30,-14,3.6,0,215,400">Kopf nah</button>
+    <button data-v="-40,-12,2.2,-80,300,560">Kronkorkenweg</button>
+  </div>
+  <label>Flaschen
+    <select id="fl"></select></label>
+  <div style="margin-top:6px">
+    <button id="play">⏸ Pause</button><button id="pm">Mensch an</button><button id="ph">Haube aus</button>
+  </div>
+  <label>Geschwindigkeit <input id="tempo" type="range" min="0.1" max="2" step="0.1" value="0.6"></label>
+  <div id="schritt"></div>
+  <div class="dim" style="margin-top:6px">Mover (Station · Flasche)</div>
+  <div id="mover"></div>
+  <table id="tab"></table>
+  <div id="fehler"></div>
+  </div>
+</div>
+<script>
+const DATEN = /*DATEN*/[];
+const FLASCHEN = /*FLASCHEN*/[];
+const INFO = /*INFO*/{};
+const T = INFO.tisch, N = INFO.n, L = INFO.L;
+const FARBE = Object.assign({}, INFO.farben, { glas:[110,62,22,1], etikett:[235,230,215,1], kronkorken:[212,175,55,1] });
+function dek(s) { const b = Uint8Array.from(atob(s), c => c.charCodeAt(0)); return new Float32Array(b.buffer); }
+const ZIEL0 = [0, 40, 1170];
+let ziel = ZIEL0.slice();
+let az = 25, el = -28, zoom = 0.9, zeigeM = false, zeigeH = true, laeuft = true, tempo = 0.6, zeit = 0;
+let modus = -1;                              // -1 = gemischt, sonst Index der Sorte
+const glatt = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+const mod = (a, m) => ((a % m) + m) % m;
+const abschnitt = (t, a, b) => glatt((t - a) / (b - a));
+
+// ---------------------------------------------------------------- Bahn (wie modell_d.bahn)
+function bahn(u) {
+  u = mod(u, L); const a = INFO.a, r = INFO.rk;
+  if (u < 2 * a) return [[-a + u, -r], [1, 0], [0, -1]];
+  u -= 2 * a;
+  if (u < Math.PI * r) { const p = -Math.PI / 2 + u / r; return [[a + r * Math.cos(p), r * Math.sin(p)], [-Math.sin(p), Math.cos(p)], [Math.cos(p), Math.sin(p)]]; }
+  u -= Math.PI * r;
+  if (u < 2 * a) return [[a - u, r], [-1, 0], [0, 1]];
+  u -= 2 * a; const p = Math.PI / 2 + u / r;
+  return [[-a + r * Math.cos(p), r * Math.sin(p)], [-Math.sin(p), Math.cos(p)], [Math.cos(p), Math.sin(p)]];
+}
+function moverLage(u) { const [c, t, n] = bahn(u); return [c[0] + INFO.off * n[0], c[1] + INFO.off * n[1], Math.atan2(t[1], t[0]) * 180 / Math.PI]; }
+
+// ---------------------------------------------------------------- Ablauf (ein Takt je Flasche)
+// Phasen je Takt (s): 0–2,0 Öffnen an der Station, gleichzeitig Entnahme und Laden vorn;
+// 2,0–3,6 alle Mover fahren eine Station weiter, Kopf stellt sich auf die nächste Flasche ein;
+// der Kronkorken wandert über Überband und Steigband in den Turm.
+const TAKT = 5.0, S = INFO.slots;    // Slots: 0 Ausgabe, 1 Laden, 2 Kurve rechts, 3 Messen, 4 Öffnen, 5 Kurve links
+const SORTEN_MIX = [0, 9, 3, 11, 6, 1, 10, 7, 2, 4, 8, 5];
+function sorte(i, ladeTakt) {          // welche Sorte steckt in Mover i, geladen in Takt ladeTakt
+  if (modus >= 0) return modus;
+  return SORTEN_MIX[mod(ladeTakt * 5 + i * 7, SORTEN_MIX.length)];
+}
+function belegung(i, c) {            // Mover i im Takt c: Station k, Sorte, Ladetakt
+  const k = mod(i + c, N);
+  const lade = k >= 1 ? c - (k - 1) : c - (N - 1);
+  return { k, sorte: sorte(i, lade) };
+}
+function zustand(t) {
+  const c = Math.floor(t / TAKT), p = t - c * TAKT;
+  const z = { mover: [], kork: null, turm: Math.max(0, c), text: ["", ""], kopf: {}, klappe1: 0, klappe2: 0 };
+  const iO = mod(4 - c, N);                       // Mover an der Öffnungsstation
+  const fl0 = FLASCHEN[belegung(iO, c).sorte], fl1 = FLASCHEN[belegung(mod(3 - c, N), c).sorte];
+  // Kopf: Höhe, Rotor, Zustellung
+  const zcA = fl0.zc, zcB = fl1.zc;
+  let zc = zcA + INFO.abheben * abschnitt(p, 1.25, 1.55);
+  if (p > 2.3) zc = zcA + INFO.abheben + (zcB - zcA - INFO.abheben) * abschnitt(p, 2.3, 2.8);   // fertig, bevor die nächste Flasche einfährt
+  const rotor = 720 * abschnitt(p, 0.2, 1.15) + 180 * abschnitt(p, 1.6, 2.0) + 180 * abschnitt(p, 2.45, 2.8);   // erst wenn die offene Flasche den Ring verlassen hat
+  const zustell = abschnitt(p, 0.2, 0.55) * (1 - abschnitt(p, 0.95, 1.15));
+  z.kopf = { zc, rotor, zustell };
+  // Mover
+  for (let i = 0; i < N; i++) {
+    const b = belegung(i, c), k = b.k, kn = (k + 1) % N;
+    const ver = 0.25 * ((k + 2) % N) / N;              // leicht versetzt: jeder Mover fährt für sich
+    const q = abschnitt(p, 2.0 + ver, 3.2 + ver);
+    const u0 = S[k], u1 = S[kn] + (S[kn] < S[k] ? L : 0);
+    const u = u0 + (u1 - u0) * q;
+    let st = k === 2 || k === 3 ? "zu" : k === 4 ? (p < 1.25 ? "zu" : "offen") : k === 5 ? "offen" : k === 0 ? "offen" : "leer";
+    let hoch = 0, vor = 0, sichtbar = true, srt = b.sorte;
+    if (k === 0) {                                     // Ausgabe: Bediener nimmt die offene Flasche
+      const e = abschnitt(p, 0.45, 1.25); hoch = Math.min(1, e * 2) * 30; vor = Math.max(0, e * 2 - 1) * 260;
+      if (p > 1.25) { st = "leer"; sichtbar = false; }
+    }
+    if (k === 1) {                                     // Laden: neue Flasche (eine Station später: Sorte des nächsten Ladetakts)
+      srt = sorte(i, c);
+      const e = abschnitt(p, 0.6, 1.5); vor = (1 - e) * 260; hoch = Math.min(1, (1 - e) * 2) * 30;
+      sichtbar = p > 0.6; st = p > 1.5 ? "zu" : "rein";
+      if (q > 0) { st = "zu"; sichtbar = true; vor = 0; hoch = 0; }
+    }
+    if (k === 0 && q > 0) { sichtbar = false; }
+    const offenK = (uu) => Math.min(1, Math.max(0, 1 - Math.min(Math.abs(mod(uu - S[0] + L / 2, L) - L / 2),
+                                                          Math.abs(mod(uu - S[1] + L / 2, L) - L / 2)) / 50));
+    const klemmeAuf = offenK(u);
+    z.mover.push({ i, u, k, st, sorte: srt, hoch, vor, sichtbar, klemmeAuf });
+  }
+  z.klappe1 = 100 * abschnitt(p, 0.05, 0.4) * (1 - abschnitt(p, 1.35, 1.75));
+  z.klappe2 = 100 * abschnitt(p, 0.25, 0.6) * (1 - abschnitt(p, 1.55, 1.95));
+  // Kronkorken des gerade geöffneten Mover
+  const ztop0 = INFO.z0 + fl0.H + 1.5;
+  if (p < 1.25) z.kork = null;                      // sitzt noch (wird mit dem Mover gezeichnet)
+  else {
+    let x = 0, y = INFO.ys, ztop = zc + INFO.spalt;
+    if (p > 2.0) y = INFO.ys + (INFO.band_ende - INFO.ys) * abschnitt(p, 2.0, 2.8);
+    if (p > 2.8) { y = INFO.steig_y; const zz = zcB + INFO.spalt; /* Kopf steht ab 2,8 s auf der nächsten Flasche */ ztop = zz + (INFO.steig_oben - zz) * abschnitt(p, 2.8, 3.9); }
+    if (p > 3.9) {
+      const [tx, ty, tok] = INFO.turm, f = abschnitt(p, 3.9, 4.5);
+      x = tx * f; y = INFO.steig_y + (ty - INFO.steig_y) * f; ztop = INFO.steig_oben + (tok + 40 - INFO.steig_oben) * f;
+    }
+    if (p > 4.5) z.kork = null;
+    else z.kork = { x, y, ztop, ztop0, sorte: belegung(iO, c).sorte, kipp: p > 3.9 ? 40 * abschnitt(p, 3.9, 4.5) : 0 };
+    z.turm = Math.max(0, c + (p > 4.5 ? 1 : 0));
+  }
+  // Texte
+  const tx = [[0, "Öffnen", `Mover ${iO + 1} steht im Kopf (${fl0.name}). Rollen fahren unter die Zahnkante, der Rotor läuft 2 Umdrehungen: die Zähne werden aufgebogen. Das Überband hält den Kronkorken.`],
+              [1.2, "Abheben", "Kopf hebt 8 mm. Der Kronkorken hängt am Magnet-Überband, das CO₂ ist über den Spalt langsam entwichen."],
+              [1.6, "Schlitz", "Rotor dreht den Schlitz zur Ausfahrt (180°)."],
+              [2.0, "Takten", "Alle Mover fahren eine Station weiter, jeder für sich. Die offene Flasche fährt aus, die nächste ist schon gemessen."],
+              [2.3, "Einstellen", `Kopf fährt auf die nächste Flasche (${fl1.name}, Laser-Messung), Rotorschlitz zur Einfahrt.`],
+              [3.6, "Kronkorken", "Das Steigband trägt den Kronkorken nach oben, er fällt über die Rutsche in den Sammelturm."]];
+  for (const [ab, a, b] of tx) if (p >= ab) z.text = [a, b];
+  if (p < 2.0) z.text[1] += " · Vorn: offene Flasche entnehmen, neue einsetzen.";
+  return z;
+}
+
+// ---------------------------------------------------------------- Matrizen (spaltenweise, WebGL)
+const I4 = () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+function mul(a, b) { const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; }
+function verschieb(x, y, z) { const m = I4(); m[12] = x; m[13] = y; m[14] = z; return m; }
+function drehung(ax, ay, az_, grad, px = 0, py = 0, pz = 0) {
+  const a = grad * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), t = 1 - c;
+  const r = new Float32Array([t*ax*ax+c, t*ax*ay+s*az_, t*ax*az_-s*ay, 0,  t*ax*ay-s*az_, t*ay*ay+c, t*ay*az_+s*ax, 0,
+                              t*ax*az_+s*ay, t*ay*az_-s*ax, t*az_*az_+c, 0,  0, 0, 0, 1]);
+  return mul(verschieb(px, py, pz), mul(r, verschieb(-px, -py, -pz)));
+}
+function blick(e, z, u) {
+  const f = norm([z[0] - e[0], z[1] - e[1], z[2] - e[2]]), s = norm(kreuz(f, u)), w = kreuz(s, f);
+  return new Float32Array([s[0], w[0], -f[0], 0, s[1], w[1], -f[1], 0, s[2], w[2], -f[2], 0,
+    -(s[0]*e[0]+s[1]*e[1]+s[2]*e[2]), -(w[0]*e[0]+w[1]*e[1]+w[2]*e[2]), f[0]*e[0]+f[1]*e[1]+f[2]*e[2], 1]);
+}
+function perspektive(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2);
+  return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]); }
+const kreuz = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const norm = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
+
+// ---------------------------------------------------------------- WebGL
+const cv = document.getElementById("c");
+const gl = cv.getContext("webgl", { antialias: true });
+if (!gl) document.getElementById("fehler").textContent = "WebGL wird von diesem Browser nicht unterstützt.";
+const VS = `attribute vec3 p; attribute vec3 n; attribute vec4 c; uniform mat4 M, VP; varying vec4 vc; varying vec3 vn;
+  void main(){ vec4 w = M * vec4(p, 1.0); gl_Position = VP * w; vn = (M * vec4(n, 0.0)).xyz; vc = c; }`;
+const FS = `precision mediump float; varying vec4 vc; varying vec3 vn; uniform vec3 L; uniform float hell;
+  void main(){ vec3 nn = normalize(vn); float d = abs(dot(nn, L)); float k = 0.40 + 0.60 * d;
+    gl_FragColor = vec4(min(vc.rgb * k * hell, vec3(1.0)), vc.a); }`;
+function shader(typ, q) { const s = gl.createShader(typ); gl.shaderSource(s, q); gl.compileShader(s); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const A_P = gl.getAttribLocation(prog, "p"), A_N = gl.getAttribLocation(prog, "n"), A_C = gl.getAttribLocation(prog, "c");
+const U_M = gl.getUniformLocation(prog, "M"), U_VP = gl.getUniformLocation(prog, "VP"),
+      U_L = gl.getUniformLocation(prog, "L"), U_H = gl.getUniformLocation(prog, "hell");
+gl.enable(gl.DEPTH_TEST);
+
+function puffer(tris, farbe) {
+  const n = tris.length / 9, d = new Float32Array(n * 3 * 10);
+  for (let i = 0; i < n; i++) {
+    const o = i * 9, ux = tris[o+3]-tris[o], uy = tris[o+4]-tris[o+1], uz = tris[o+5]-tris[o+2],
+          vx = tris[o+6]-tris[o], vy = tris[o+7]-tris[o+1], vz = tris[o+8]-tris[o+2];
+    let nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const f = Array.isArray(farbe[0]) ? farbe[i] : farbe;
+    for (let k = 0; k < 3; k++) { const q = (i * 3 + k) * 10;
+      d[q] = tris[o+3*k]; d[q+1] = tris[o+3*k+1]; d[q+2] = tris[o+3*k+2]; d[q+3] = nx; d[q+4] = ny; d[q+5] = nz;
+      d[q+6] = f[0] / 255; d[q+7] = f[1] / 255; d[q+8] = f[2] / 255; d[q+9] = f[3]; }
+  }
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW);
+  return { b, n: n * 3 };
+}
+// Gruppen nach Bewegungsklasse, Transparenz, Haube und LED
+const GRUPPEN = {};
+for (const p of DATEN) {
+  const f = FARBE[p.g] || [255, 0, 255, 1];
+  const key = (p.s === "mensch" ? "mensch" : p.k || "fest") + (f[3] < 1 ? "|t" : "") + (p.g === "pc" ? "|h" : "") + (p.g === "led" ? "|led" : "");
+  (GRUPPEN[key] = GRUPPEN[key] || []).push({ tris: dek(p.d), f });
+}
+const GPU = {};
+for (const [key, teile] of Object.entries(GRUPPEN)) {
+  const n = teile.reduce((s, t) => s + t.tris.length, 0), tris = new Float32Array(n), farben = [];
+  let o = 0; for (const t of teile) { tris.set(t.tris, o); o += t.tris.length; for (let i = 0; i < t.tris.length / 9; i++) farben.push(t.f); }
+  GPU[key] = puffer(tris, farben);
+}
+const FL_GPU = FLASCHEN.map(f => ({ glas: puffer(dek(f.glas), FARBE.glas), etikett: puffer(dek(f.etikett), FARBE.etikett),
+                                     kork: puffer(dek(f.kork), FARBE.kronkorken) }));
+function zeichneP(p, M, hell = 1) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, p.b);
+  gl.enableVertexAttribArray(A_P); gl.vertexAttribPointer(A_P, 3, gl.FLOAT, false, 40, 0);
+  gl.enableVertexAttribArray(A_N); gl.vertexAttribPointer(A_N, 3, gl.FLOAT, false, 40, 12);
+  gl.enableVertexAttribArray(A_C); gl.vertexAttribPointer(A_C, 4, gl.FLOAT, false, 40, 24);
+  gl.uniformMatrix4fv(U_M, false, M); gl.uniform1f(U_H, hell);
+  gl.drawArrays(gl.TRIANGLES, 0, p.n);
+}
+
+function kopfMatrizen(z) {
+  const { zc, rotor, zustell } = z.kopf, ys = INFO.ys;
+  const Mz = verschieb(0, 0, zc - INFO.zc_modell);
+  const Mro = mul(Mz, drehung(0, 0, 1, rotor, 0, ys, 0));
+  const m = { fest: I4(), mensch: I4(), z: Mz, ro: Mro, zr: Mro, d: I4(),
+              k1: drehung(0, 0, 1, -z.klappe1, INFO.fach.Ausgabe - INFO.fach_b / 2 - 4, INFO.front_y, 0),
+              k2: drehung(0, 0, 1, -z.klappe2, INFO.fach.Laden - INFO.fach_b / 2 - 4, INFO.front_y, 0) };
+  INFO.arm_w.forEach((w, i) => {
+    const r = -INFO.zustell_weg * zustell, hub = INFO.rolle_hub * Math.min(1, Math.max(0, (zustell - 0.7) / 0.3));
+    m["a" + i] = mul(Mro, verschieb(r * Math.cos(w * Math.PI / 180), r * Math.sin(w * Math.PI / 180), hub));
+  });
+  return m;
+}
+function moverMatrix(u) { const [x, y, w] = moverLage(u); return mul(verschieb(x, y, 0), drehung(0, 0, 1, w)); }
+
+// ---------------------------------------------------------------- Kamera
+const FOV = 0.55;
+function kamera() {
+  const e = -el * Math.PI / 180, a = az * Math.PI / 180, R = 3300 / zoom;
+  const auge = [ziel[0] + R * Math.sin(a) * Math.cos(e), ziel[1] - R * Math.cos(a) * Math.cos(e), ziel[2] + R * Math.sin(e)];
+  const f = norm([ziel[0] - auge[0], ziel[1] - auge[1], ziel[2] - auge[2]]);
+  const s = norm(kreuz(f, [0, 0, 1])), w = kreuz(s, f);
+  return { auge, R, s, w };
+}
+function verschiebeBild(dx, dy) {
+  const { R, s, w } = kamera(), k = 2 * R * Math.tan(FOV / 2) / cv.clientHeight;
+  for (let i = 0; i < 3; i++) ziel[i] += (-s[i] * dx + w[i] * dy) * k;
+}
+function zoomeZu(faktor, px, py) {
+  const neu = Math.max(0.25, Math.min(60, zoom * faktor)); faktor = neu / zoom;
+  const { R, s, w } = kamera(), h = R * Math.tan(FOV / 2), asp = cv.clientWidth / cv.clientHeight;
+  const nx = px / cv.clientWidth * 2 - 1, ny = 1 - py / cv.clientHeight * 2;
+  for (let i = 0; i < 3; i++) ziel[i] += (s[i] * nx * h * asp + w[i] * ny * h) * (1 - 1 / faktor);
+  zoom = neu;
+}
+
+let DUNKEL = null, LETZTE_ANZEIGE = 0;
+function zeichne(z) {
+  const W = Math.round(cv.clientWidth * devicePixelRatio), H = Math.round(cv.clientHeight * devicePixelRatio);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; DUNKEL = null; }
+  gl.viewport(0, 0, W, H);
+  if (DUNKEL === null) DUNKEL = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() === "#10151d";
+  if (DUNKEL) gl.clearColor(0.063, 0.082, 0.114, 1); else gl.clearColor(0.933, 0.945, 0.961, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const { auge, R } = kamera();
+  gl.uniformMatrix4fv(U_VP, false, mul(perspektive(FOV, W / H, Math.max(2, R * 0.02), 9000 + R), blick(auge, ziel, [0, 0, 1])));
+  gl.uniform3fv(U_L, norm([-0.4, -0.65, 0.65]));
+  const Mx = kopfMatrizen(z);
+  gl.disable(gl.BLEND); gl.depthMask(true);
+  const mover = ["mov", "jl", "jr"];
+  for (const [key, p] of Object.entries(GPU)) {
+    const kl = key.split("|")[0];
+    if (key.includes("|t") || mover.includes(kl)) continue;
+    if (kl === "mensch" && !zeigeM) continue;
+    zeichneP(p, Mx[kl] || I4(), key.includes("|led") && z.text[0] === "Öffnen" ? 1.6 : 1);
+  }
+  // Mover mit Klemme, Flaschen und Kronkorken
+  for (const m of z.mover) {
+    const Mm = moverMatrix(m.u), fl = FLASCHEN[m.sorte];
+    const zuX = m.sorte >= 0 ? fl.D / 2 * Math.SQRT2 : INFO.backe_ref;
+    const auf = INFO.backe_auf, bx = (m.st === "leer" || m.st === "rein") ? auf : zuX + (auf - zuX) * m.klemmeAuf;
+    const d = bx - INFO.backe_ref;
+    for (const [kl, sg] of [["mov", 0], ["jl", -1], ["jr", 1]]) {
+      const p = GPU[kl]; if (!p) continue;
+      zeichneP(p, sg ? mul(Mm, verschieb(sg * d, 0, 0)) : Mm);
+    }
+    if (!m.sichtbar) continue;
+    const Mb = mul(Mm, verschieb(0, -m.vor, m.hoch));
+    const G = FL_GPU[m.sorte];
+    zeichneP(G.glas, Mb); zeichneP(G.etikett, Mb);
+    if (m.st === "zu" || m.st === "rein") zeichneP(G.kork, Mb);
+  }
+  if (z.kork) {
+    const k = z.kork;
+    const M = mul(verschieb(k.x, k.y, k.ztop - k.ztop0), drehung(1, 0, 0, k.kipp, 0, 0, k.ztop0 + T));
+    zeichneP(FL_GPU[k.sorte].kork, M);
+  }
+  // Sammelturm: gezählte Kronkorken liegen locker übereinander (max. 60 sichtbar)
+  const [tx, ty, , tboden] = INFO.turm;
+  const nT = Math.min(60, z.turm);
+  for (let i = 0; i < nT; i++) {
+    const a = i * 2.39996, r = 6 + (i % 3) * 3, top0 = INFO.z0 + FLASCHEN[0].H + 1.5;
+    const M = mul(verschieb(tx + r * Math.cos(a), ty + r * Math.sin(a), tboden + 4 + i * 3.6 - top0),
+                  drehung(1, 0, 0, 25 * Math.sin(i * 1.7), 0, 0, top0 + T));
+    zeichneP(FL_GPU[0].kork, M);
+  }
+  // Transparente Teile zuletzt (Turm immer, Haube abschaltbar)
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+  for (const [key, p] of Object.entries(GPU)) {
+    if (!key.includes("|t")) continue;
+    if (key.includes("|h") && !zeigeH) continue;
+    zeichneP(p, Mx[key.split("|")[0]] || I4());
+  }
+  gl.depthMask(true);
+}
+
+function anzeige(z) {
+  document.getElementById("schritt").innerHTML = `<b>${z.text[0]}</b> ${z.text[1]}`;
+  const name = ["Ausgabe", "Laden", "Kurve", "Messen", "Öffnen", "Kurve"];
+  document.getElementById("mover").innerHTML = z.mover.map(m =>
+    `<span class="${m.st === "offen" ? "offen" : m.st === "leer" ? "leer" : "zu"}">M${m.i + 1}<br>${name[m.k]}<br>${m.st === "leer" ? "leer" : m.st === "offen" ? "offen" : "zu"}</span>`).join("");
+  const fl = FLASCHEN[z.mover.find(m => m.k === 4).sorte];
+  document.getElementById("tab").innerHTML = `
+    <tr><td>Kronkorken im Turm</td><td>${z.turm}</td></tr>
+    <tr><td>Flasche im Kopf</td><td>${fl.name}</td></tr>
+    <tr><td>Kronkorken-Oberkante (Kopf)</td><td>${z.kopf.zc.toFixed(1)} mm</td></tr>
+    <tr><td>Rotor / Zustellung</td><td>${(z.kopf.rotor % 360).toFixed(0)}° / ${(z.kopf.zustell * 100).toFixed(0)} %</td></tr>
+    <tr><td>Takt je Flasche (Vorschau)</td><td>${TAKT.toFixed(1)} s</td></tr>`;
+}
+
+// ---------------------------------------------------------------- Bedienung
+const sel = document.getElementById("fl");
+sel.add(new Option("Gemischt: jede Flasche anders (Höhe wird gemessen)", -1));
+FLASCHEN.forEach((f, i) => sel.add(new Option(`Nur ${f.name}  (${f.H} mm, Ø ${f.D})`, i)));
+sel.onchange = () => { modus = +sel.value; };
+document.getElementById("tempo").oninput = e => tempo = +e.target.value;
+document.getElementById("play").onclick = e => { laeuft = !laeuft; e.target.textContent = laeuft ? "⏸ Pause" : "▶ Weiter"; };
+document.getElementById("pm").onclick = e => { zeigeM = !zeigeM; e.target.textContent = zeigeM ? "Mensch aus" : "Mensch an"; };
+document.getElementById("ph").onclick = e => { zeigeH = !zeigeH; e.target.textContent = zeigeH ? "Haube aus" : "Haube an"; };
+function ansicht(v) {
+  [az, el, zoom] = v.slice(0, 3);
+  ziel = v.length >= 6 ? [v[3], v[4], v[5] + T] : ZIEL0.slice();
+}
+document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => ansicht(b.dataset.v.split(",").map(Number)));
+const ui = document.getElementById("ui"), zuKnopf = document.getElementById("zu");
+function klappeUI(klein) {
+  ui.classList.toggle("klein", klein); zuKnopf.textContent = klein ? "☰" : "–";
+  try { localStorage.setItem("tfoad_ui_klein", klein ? "1" : "0"); } catch (_) {}
+}
+let startKlein = window.innerWidth < 700;
+try { const s = localStorage.getItem("tfoad_ui_klein"); if (s !== null) startKlein = s === "1"; } catch (_) {}
+klappeUI(startKlein);
+zuKnopf.onclick = () => klappeUI(!ui.classList.contains("klein"));
+
+const pins = new Map();
+let maus = null, letzt = null, pinchD = 0, mitte = null;
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); cv.setPointerCapture(e.pointerId); pins.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pins.size === 2) { const [p, q] = [...pins.values()]; maus = "touch2"; pinchD = Math.hypot(p[0] - q[0], p[1] - q[1]); mitte = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; return; }
+  maus = (e.button === 1 || e.button === 2 || e.shiftKey || e.ctrlKey) ? "pan" : "dreh";
+  letzt = [e.clientX, e.clientY]; cv.className = maus;
+});
+function loslassen(e) {
+  pins.delete(e.pointerId);
+  if (pins.size === 1) { maus = "dreh"; letzt = [...pins.values()][0]; }
+  else if (pins.size === 0) { maus = null; cv.className = ""; }
+}
+cv.addEventListener("pointerup", loslassen);
+cv.addEventListener("pointercancel", loslassen);
+cv.addEventListener("pointermove", e => {
+  if (!pins.has(e.pointerId)) return;
+  pins.set(e.pointerId, [e.clientX, e.clientY]);
+  if (maus === "touch2" && pins.size === 2) {
+    const [p, q] = [...pins.values()], d = Math.hypot(p[0] - q[0], p[1] - q[1]), m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    verschiebeBild(m[0] - mitte[0], m[1] - mitte[1]);
+    const r = cv.getBoundingClientRect();
+    if (pinchD > 0 && d > 0) zoomeZu(d / pinchD, m[0] - r.left, m[1] - r.top);
+    pinchD = d; mitte = m; return;
+  }
+  if (!letzt) return;
+  const dx = e.clientX - letzt[0], dy = e.clientY - letzt[1]; letzt = [e.clientX, e.clientY];
+  if (maus === "pan") verschiebeBild(dx, dy);
+  else if (maus === "dreh") { az += dx * 0.4; el = Math.max(-89, Math.min(60, el + dy * 0.4)); }
+});
+cv.addEventListener("wheel", e => {
+  e.preventDefault(); const r = cv.getBoundingClientRect();
+  zoomeZu(Math.pow(1.0015, -e.deltaY * (e.deltaMode === 1 ? 33 : 1)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+cv.addEventListener("dblclick", () => ansicht([25, -28, 0.9]));
+let letzte = performance.now();
+function schleife(jetzt) {
+  const dt = Math.min(0.1, (jetzt - letzte) / 1000); letzte = jetzt;
+  if (laeuft) zeit += dt * tempo;
+  const z = zustand(zeit); zeichne(z);
+  if (jetzt - LETZTE_ANZEIGE > 120) { anzeige(z); LETZTE_ANZEIGE = jetzt; }
+  requestAnimationFrame(schleife);
+}
+requestAnimationFrame(schleife);
+</script>
+</body>
+</html>

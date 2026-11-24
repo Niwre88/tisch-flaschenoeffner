@@ -1,5 +1,8 @@
 # 3 · Flaschenöffner-Automat TFO-A, Index C (Greifkopf)
 
+> **Nachfolger: [Index D](../4_Automat_TFO-A_Index_D/)** mit Magnetbahn und Orbital-Entbördler.
+> Index C bleibt als Greifer-Variante erhalten.
+
 **Status: Entwurf. Kollisionsprüfung 0 Befunde, Firmware ungetestet.**
 Zur Übersicht aller Stände: [zurück zur Hauptseite](../README.md) ·
 **3D-Vorschau:** [niwre88.github.io/tisch-flaschenoeffner/3_Automat_TFO-A_Index_C/vorschau_automatik.html](https://niwre88.github.io/tisch-flaschenoeffner/3_Automat_TFO-A_Index_C/vorschau_automatik.html)

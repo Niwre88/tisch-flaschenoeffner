@@ -690,11 +690,16 @@ def flaschen_formen(fid):
     _, name, H, D, form = flasche(fid)
     pr = M.flasche_profil(H, D, form)
     R = D / 2
-    wp = cq.Workplane("XZ").moveTo(0, 0).lineTo(pr[0][0], 0).lineTo(*pr[1]).lineTo(*pr[2])
-    wp = wp.spline([p for p in pr[3:13]], includeCurrent=True)
-    for p in pr[13:]:
-        wp = wp.lineTo(*p)
-    glas = wp.lineTo(0, H).close().revolve(360, (0, 0, 0), (0, 1, 0)).val()
+    # Schulter als Polygonzug (feiner aufgelöst) statt Spline: Spline-Rotationsflächen
+    # zeigen manche STEP-Viewer nicht an (Flasche erscheint dann ohne Schulter).
+    pts = [(0, 0), (pr[0][0], 0), pr[1], pr[2]]
+    hb, hs, rn = (pr[2][1], pr[12][1], pr[12][0])
+    for i in range(1, 25):
+        t = i / 24
+        s = t * t * (3 - 2 * t)
+        pts.append((R + (rn - R) * s, hb + (hs - hb) * t))
+    pts += list(pr[13:]) + [(0, H)]
+    glas = cq.Workplane("XZ").polyline(pts).close().revolve(360, (0, 0, 0), (0, 1, 0)).val()
     innen = cq.Workplane("XZ").polyline([(0, 3), (R - 4, 3), (R - 4, pr[2][1]), (11, H - 20), (9.5, H - 1), (0, H - 1)]) \
         .close().revolve(360, (0, 0, 0), (0, 1, 0)).val()
     glas = glas.cut(innen).translate(V(0, 0, Z0))
